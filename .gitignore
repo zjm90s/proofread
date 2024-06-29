@@ -1,0 +1,15 @@
+# Logs
+logs
+*.log
+
+# Web
+node_modules
+dist
+dist-electron
+package-lock.json
+pnpm-lock.yaml
+
+# Other
+.idea
+.vscode
+.DS_Store

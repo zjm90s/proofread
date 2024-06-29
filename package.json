@@ -1,0 +1,35 @@
+{
+  "name": "Proofread",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "author": "zhoujianming",
+  "description": "A proofread application",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "dev:mac": "electron .",
+    "build:mac": "electron-builder -m --config electron-builder.json",
+    "build:win": "electron-builder -w --config electron-builder.json"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "diff": "^5.2.0",
+    "diff-match-patch": "^1.0.5",
+    "diff2html": "^3.4.48",
+    "element-plus": "^2.7.5",
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "electron": "^31.0.1",
+    "electron-builder": "^24.13.3",
+    "sass": "^1.77.6",
+    "unocss": "^0.58.6",
+    "vite": "^5.2.8",
+    "vite-plugin-vue-devtools": "^7.0.25"
+  }
+}

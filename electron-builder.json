@@ -1,0 +1,28 @@
+{
+  "directories": {
+    "output": "dist-electron"
+  },
+  "files": [
+    "electron",
+    "dist"
+  ],
+  "mac": {
+    "icon": "dist/favicon.png"
+  },
+  "win": {
+    "icon": "dist/favicon.ico",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "ia32"
+        ]
+      }
+    ]
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true
+  }
+}

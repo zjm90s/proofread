@@ -27,7 +27,6 @@
     "electron": "^31.0.1",
     "electron-builder": "^24.13.3",
     "sass": "^1.77.6",
-    "unocss": "^0.58.6",
     "vite": "^5.2.8",
     "vite-plugin-vue-devtools": "^7.0.25"
   }

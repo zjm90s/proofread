@@ -16,7 +16,9 @@
             </el-col>
         </el-row>
 
-        <el-text class="mx-1">比对结果：</el-text>
+        <el-row class="text-label">
+            <el-text>比对结果：</el-text>
+        </el-row>
         <el-row class="diff-result">
             <el-col :span="12">
                 <div v-html="diffHtml1"/>
@@ -31,10 +33,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import * as Diff from 'diff'
-import * as Diff2html from 'diff2Html'
-import 'diff2html/bundles/css/diff2html.min.css'
 
-// do not use same name with ref
 const form = reactive({
     text1: '',
     text2: ''
@@ -44,8 +43,10 @@ const diffHtml1 = ref('')
 const diffHtml2 = ref('')
 
 const textCheck = () => {
-    const text1 = form.text1.replaceAll(/(。|！|？|，|；|\.)/g, '$1\n')
-    const text2 = form.text2.replaceAll(/(。|！|？|，|；|\.)/g, '$1\n')
+    // const text1 = form.text1.replaceAll(/(。|！|？|，|；|\.)/g, '$1\n')
+    // const text2 = form.text2.replaceAll(/(。|！|？|，|；|\.)/g, '$1\n')
+    const text1 = form.text1.replaceAll(/(。|！|？|\.)/g, '$1\n')
+    const text2 = form.text2.replaceAll(/(。|！|？|\.)/g, '$1\n')
     const diffItems = Diff.diffChars(text1, text2)
 
     let html1 = ''
@@ -68,23 +69,21 @@ const textCheck = () => {
 }
 
 const buildValueHtml = (diffHtml, value, color) => {
-    diffHtml = diffHtml + '<span class="white-space" style="background-color: ' + color + '">' + value + '</span>'
+    diffHtml = diffHtml + '<span style="white-space: pre-wrap; word-spacing: 0.25em; border-radius: .2em; background-color: '
+        + color + '">' + value + '</span>'
     return diffHtml
 }
 </script>
 
-<style>
+<style scoped>
+.text-label {
+    margin-bottom: 15px;
+}
 .diff-result {
-    padding-top: 20px;
     padding-bottom: 50px;
 }
 .diff-result > .el-col {
     padding: 10px;
     border: 1px solid var(--el-menu-border-color);
-}
-.white-space {
-    white-space: pre-wrap;
-    word-spacing: 0.25em;
-    border-radius: .2em;
 }
 </style>

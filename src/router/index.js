@@ -28,6 +28,16 @@ const router = createRouter({
         name: 'textDiff',
         meta: { title: 'textDiff', keepAlive: false }
       }]
+    },
+    {
+      path: '/pdfDiff',
+      component: Layout,
+      children: [{
+        path: '',
+        component: () => import('@/views/PDFDiff.vue'),
+        name: 'pdfDiff',
+        meta: { title: 'pdfDiff', keepAlive: false }
+      }]
     }
   ]
 })

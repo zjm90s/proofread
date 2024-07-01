@@ -10,6 +10,7 @@
             </span>
         </el-menu-item>
         <el-menu-item index="/textDiff">文本比对</el-menu-item>
+        <el-menu-item index="/pdfDiff">PDF比对</el-menu-item>
     </el-menu>
 </template>
 

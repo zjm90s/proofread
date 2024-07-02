@@ -2,12 +2,12 @@
     <div class="text-diff">
         <el-row class="pdf-upload">
             <el-col :span="12">
-                <el-upload ref="pdfFile1" :auto-upload="false" :limit="1" :on-change="handleFileChange1" :on-exceed="handleFileExceed1">
+                <el-upload ref="pdfFile1" :auto-upload="false" :limit="1" :on-change="loadPdfData1" :on-exceed="fileReplace1">
                     <el-button type="primary">上传文件1</el-button>
                 </el-upload>
             </el-col>
             <el-col :span="12">
-                <el-upload ref="pdfFile2" :auto-upload="false" :limit="1" :on-change="handleFileChange2" :on-exceed="handleFileExceed2">
+                <el-upload ref="pdfFile2" :auto-upload="false" :limit="1" :on-change="loadPdfData2" :on-exceed="fileReplace2">
                     <el-button type="primary">上传文件2</el-button>
                 </el-upload>
             </el-col>
@@ -18,29 +18,29 @@
         </el-row>
         <el-row class="diff-pdf">
             <el-col :span="12">
-                <VuePdfEmbed text-layer :source="fileObj1.pdfData" :page="fileObj1.pageNumber" @loaded="handlePdfLoaded1"/>
+                <VuePdfEmbed text-layer :source="fileObj1.pdfData" :page="fileObj1.pageNumber" @loaded="loadPdfText1"/>
             </el-col>
             <el-col :span="12">
-                <VuePdfEmbed text-layer :source="fileObj2.pdfData" :page="fileObj2.pageNumber" @loaded="handlePdfLoaded2"/>
+                <VuePdfEmbed text-layer :source="fileObj2.pdfData" :page="fileObj2.pageNumber" @loaded="loadPdfText2"/>
             </el-col>
         </el-row>
-        <el-row class="diff-pdf-page" v-if="fileObj1.pdfText || fileObj2.pdfText">
+        <el-row class="diff-pdf-page" v-if="fileObj1.pageSize || fileObj2.pageSize">
             <el-col :span="8">
-                <div v-if="fileObj1.pdfText">
+                <div v-if="fileObj1.pageSize">
                     <el-text class="mx-1">文件1-共{{fileObj1.pageSize}}页-页码：</el-text>
-                    <el-input-number v-model="fileObj1.pageNumber" :min="1" @change="handPageNumberChange1"/>
+                    <el-input-number v-model="fileObj1.pageNumber" :min="1" @change="pageTurning1"/>
                 </div>
             </el-col>
             <el-col :span="8">
-                <div v-if="fileObj1.pdfText && fileObj2.pdfText">
+                <div v-if="fileObj1.pageSize && fileObj2.pageSize">
                     <el-text class="mx-1">文件1和2-页码：</el-text>
-                    <el-input-number v-model="bothPageNumber" :min="1" @change="handBothPageNumberChange"/>
+                    <el-input-number v-model="bothPageNumber" :min="1" @change="bothPageTurning"/>
                 </div>
             </el-col>
             <el-col :span="8">
-                <div v-if="fileObj2.pdfText">
+                <div v-if="fileObj2.pageSize">
                     <el-text class="mx-1">文件2-共{{fileObj2.pageSize}}页-页码：</el-text>
-                    <el-input-number v-model="fileObj2.pageNumber" :min="1" @change="handPageNumberChange2"/>
+                    <el-input-number v-model="fileObj2.pageNumber" :min="1" @change="pageTurning2"/>
                 </div>
             </el-col>
         </el-row>
@@ -67,47 +67,52 @@ import VuePdfEmbed from 'vue-pdf-embed'
 import 'vue-pdf-embed/dist/style/index.css'
 import 'vue-pdf-embed/dist/style/textLayer.css'
 
+// 开关
+// 是否保留句子换行（即句子到达最右端的换行）
+let keepLineBreak = false
+
 // 对象属性
 const pdfFile1 = ref()
 const pdfFile2 = ref()
-let pdfDoc1 = {}
-let pdfDoc2 = {}
+let pdfDoc1 = null
+let pdfDoc2 = null
 const bothPageNumber = ref(1)
 const fileObj1 = reactive({
     pageNumber: 1,
     pageSize: 0,
-    pdfData: {},
+    pdfData: null,
     pdfText: '',
     diffHtml: ''
 })
 const fileObj2 = reactive({
     pageNumber: 1,
     pageSize: 0,
-    pdfData: {},
+    pdfData: null,
     pdfText: '',
     diffHtml: ''
 })
 
 // PDF数据加载
-const handleFileChange1 = (uploadFile) => {
-    handleFileChange(uploadFile, fileObj1)
+const loadPdfData1 = (uploadFile) => {
+    loadPdfData(uploadFile, fileObj1)
 }
-const handleFileChange2 = (uploadFile) => {
-    handleFileChange(uploadFile, fileObj2)
+const loadPdfData2 = (uploadFile) => {
+    loadPdfData(uploadFile, fileObj2)
 }
-const handleFileChange = (uploadFile, fileObj) => {
+const loadPdfData = (uploadFile, fileObj) => {
     let reader = new FileReader();
     reader.readAsArrayBuffer(uploadFile.raw)
     reader.onload = () => {
         fileObj.pdfData = reader.result
     }
+    fileObj.pageSize = 0
 }
 
 // PDF文件替换
-const handleFileExceed1 = (files) => {
+const fileReplace1 = (files) => {
     fileReplace(pdfFile1, files)
 }
-const handleFileExceed2 = (files) => {
+const fileReplace2 = (files) => {
     fileReplace(pdfFile2, files)
 }
 const fileReplace = (pdfFile, files) => {
@@ -116,29 +121,29 @@ const fileReplace = (pdfFile, files) => {
 }
 
 // PDF翻页
-const handPageNumberChange1 = () => {
-    handlePdfLoaded(pdfDoc1, fileObj1)
+const pageTurning1 = () => {
+    loadPdfText(pdfDoc1, fileObj1)
 }
-const handPageNumberChange2 = () => {
-    handlePdfLoaded(pdfDoc2, fileObj2)
+const pageTurning2 = () => {
+    loadPdfText(pdfDoc2, fileObj2)
 }
-const handBothPageNumberChange = () => {
+const bothPageTurning = () => {
     fileObj1.pageNumber = bothPageNumber.value
     fileObj2.pageNumber = bothPageNumber.value
-    handlePdfLoaded(pdfDoc1, fileObj1)
-    handlePdfLoaded(pdfDoc2, fileObj2)
+    loadPdfText(pdfDoc1, fileObj1)
+    loadPdfText(pdfDoc2, fileObj2)
 }
 
 // PDF文本获取
-const handlePdfLoaded1 = (pdfDoc) => {
+const loadPdfText1 = (pdfDoc) => {
     pdfDoc1 = pdfDoc
-    handlePdfLoaded(pdfDoc1, fileObj1)
+    loadPdfText(pdfDoc1, fileObj1)
 }
-const handlePdfLoaded2 = (pdfDoc) => {
+const loadPdfText2 = (pdfDoc) => {
     pdfDoc2 = pdfDoc
-    handlePdfLoaded(pdfDoc2, fileObj2)
+    loadPdfText(pdfDoc2, fileObj2)
 }
-const handlePdfLoaded = (pdfDoc, fileObj) => {
+const loadPdfText = (pdfDoc, fileObj) => {
     if (fileObj.pageSize == 0) {
         fileObj.pageSize = pdfDoc.numPages
     }
@@ -147,13 +152,31 @@ const handlePdfLoaded = (pdfDoc, fileObj) => {
         return
     }
     pdfDoc.getPage(fileObj.pageNumber).then((page) => {
-        page.getTextContent().then(function(textContent) {
+        page.getTextContent().then((textContent) => {
+            // 计算最大横坐标
+            let maxXCoord = 0
+            for(let i = 0; i < textContent.items.length; i++) {
+                let item = textContent.items[i]
+                let itemXCoord = item.transform[4] + item.width
+                if (itemXCoord > maxXCoord) {
+                    maxXCoord = itemXCoord
+                }
+            }
+
+            // 获取文本
             let text = ''
             for(let i = 0; i < textContent.items.length; i++) {
                 let item = textContent.items[i]
-                let preItem = textContent.items[i-1]
-                let sign = (i > 0 && preItem.transform[5] - item.transform[5] > item.height) ? '\n' : ''
-                text = text + sign + item.str
+                text = text + item.str
+                // 添加换行符
+                if (i < textContent.items.length - 1) {
+                    let nextItem = textContent.items[i+1]
+                    let itemXCoord = item.transform[4] + item.width
+                    if ((item.transform[5] - nextItem.transform[5] > item.height)
+                        && (keepLineBreak || itemXCoord < maxXCoord - 10)) {
+                        text = text + '\n'
+                    }
+                }
             }
             fileObj.pdfText = text
 

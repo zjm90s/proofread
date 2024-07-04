@@ -1,5 +1,5 @@
 <template>
-    <div class="text-diff">
+    <div class="pdf-diff">
         <el-row class="pdf-upload">
             <el-col :span="12">
                 <el-upload ref="pdfFile1" :auto-upload="false" :limit="1" :on-change="loadPdfData1" :on-exceed="fileReplace1">
@@ -28,19 +28,19 @@
             <el-col :span="8">
                 <div v-if="fileObj1.pageSize">
                     <el-text class="mx-1">文件1-共{{fileObj1.pageSize}}页-页码：</el-text>
-                    <el-input-number v-model="fileObj1.pageNumber" :min="1" @change="pageTurning1"/>
+                    <el-input-number v-model="fileObj1.pageNumber" :min="1" :precision="0" @change="pageTurning1"/>
                 </div>
             </el-col>
             <el-col :span="8">
                 <div v-if="fileObj1.pageSize && fileObj2.pageSize">
                     <el-text class="mx-1">文件1和2-页码：</el-text>
-                    <el-input-number v-model="bothPageNumber" :min="1" @change="bothPageTurning"/>
+                    <el-input-number v-model="bothPageNumber" :min="1" :precision="0" @change="bothPageTurning"/>
                 </div>
             </el-col>
             <el-col :span="8">
                 <div v-if="fileObj2.pageSize">
                     <el-text class="mx-1">文件2-共{{fileObj2.pageSize}}页-页码：</el-text>
-                    <el-input-number v-model="fileObj2.pageNumber" :min="1" @change="pageTurning2"/>
+                    <el-input-number v-model="fileObj2.pageNumber" :min="1" :precision="0" @change="pageTurning2"/>
                 </div>
             </el-col>
         </el-row>
@@ -104,8 +104,9 @@ const loadPdfData = (uploadFile, fileObj) => {
     reader.readAsArrayBuffer(uploadFile.raw)
     reader.onload = () => {
         fileObj.pdfData = reader.result
+        fileObj.pageNumber = 1
+        fileObj.pageSize = 0
     }
-    fileObj.pageSize = 0
 }
 
 // PDF文件替换

@@ -11,6 +11,7 @@
         </el-menu-item>
         <el-menu-item index="/textDiff">文本比对</el-menu-item>
         <el-menu-item index="/pdfDiff">PDF比对</el-menu-item>
+        <el-menu-item index="/refDupCheck">参考文献去重</el-menu-item>
     </el-menu>
 </template>
 

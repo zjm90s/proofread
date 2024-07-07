@@ -2,8 +2,8 @@ import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router
 import Layout from '@/layout/Layout.vue'
 
 const router = createRouter({
-  // history: createWebHistory(import.meta.env.BASE_URL),
-  history: createWebHashHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(import.meta.env.BASE_URL),
+  // history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
@@ -26,7 +26,7 @@ const router = createRouter({
         path: '',
         component: () => import('@/views/TextDiff.vue'),
         name: 'textDiff',
-        meta: { title: 'textDiff', keepAlive: false }
+        meta: { title: 'textDiff', keepAlive: true }
       }]
     },
     {
@@ -36,7 +36,7 @@ const router = createRouter({
         path: '',
         component: () => import('@/views/PDFDiff.vue'),
         name: 'pdfDiff',
-        meta: { title: 'pdfDiff', keepAlive: false }
+        meta: { title: 'pdfDiff', keepAlive: true }
       }]
     },
     {
@@ -46,7 +46,7 @@ const router = createRouter({
         path: '',
         component: () => import('@/views/RefDupCheck.vue'),
         name: 'refDupCheck',
-        meta: { title: 'refDupCheck', keepAlive: false }
+        meta: { title: 'refDupCheck', keepAlive: true }
       }]
     }
   ]

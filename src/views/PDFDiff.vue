@@ -25,23 +25,34 @@
             </el-col>
         </el-row>
         <el-row class="diff-pdf-page" v-if="fileObj1.pageSize || fileObj2.pageSize">
-            <el-col :span="8">
+            <el-col :span="7">
                 <div v-if="fileObj1.pageSize">
                     <el-text class="mx-1">文件1-共{{fileObj1.pageSize}}页-页码：</el-text>
-                    <el-input-number v-model="fileObj1.pageNumber" :min="1" :precision="0" @change="pageTurning1"/>
+                    <el-input-number v-model="fileObj1.pageNumber" :min="1" :max="fileObj1.pageSize" :precision="0" @change="pageTurning1" style="width: 130px"/>
                 </div>
             </el-col>
-            <el-col :span="8">
+            <el-col :span="10">
                 <div v-if="fileObj1.pageSize && fileObj2.pageSize">
                     <el-text class="mx-1">文件1和2-页码：</el-text>
-                    <el-input-number v-model="bothPageNumber" :min="1" :precision="0" @change="bothPageTurning"/>
+                    <el-input-number v-model="bothPageNumber" :min="1" :precision="0" @change="bothPageTurning" style="width: 130px"/>
                 </div>
             </el-col>
-            <el-col :span="8">
+            <el-col :span="7">
                 <div v-if="fileObj2.pageSize">
                     <el-text class="mx-1">文件2-共{{fileObj2.pageSize}}页-页码：</el-text>
-                    <el-input-number v-model="fileObj2.pageNumber" :min="1" :precision="0" @change="pageTurning2"/>
+                    <el-input-number v-model="fileObj2.pageNumber" :min="1" :max="fileObj2.pageSize" :precision="0" @change="pageTurning2" style="width: 130px"/>
                 </div>
+            </el-col>
+        </el-row>
+        <el-row class="diff-pdf-page" v-if="fileObj1.pageSize && fileObj2.pageSize">
+            <el-col>
+                <el-text class="mx-1">文件1页码：</el-text>
+                <el-input-number v-model="fileObj1.checkStartPage" :min="1" :max="fileObj1.pageSize" :precision="0" :controls="false" style="width: 75px"/> ~
+                <el-input-number v-model="fileObj1.checkEndPage" :min="1" :max="fileObj1.pageSize" :precision="0" :controls="false" style="width: 75px"/>
+                <el-text class="mx-1" style="margin-left: 50px">文件2页码：</el-text>
+                <el-input-number v-model="fileObj2.checkStartPage" :min="1" :max="fileObj2.pageSize" :precision="0" :controls="false" style="width: 75px"/> ~
+                <el-input-number v-model="fileObj2.checkEndPage" :min="1" :max="fileObj2.pageSize" :precision="0" :controls="false" style="width: 75px"/>
+                <el-button type="primary" :loading="allTextLoading" :disabled="allTextLoading" @click="allTextCheck" style="width: 100px; margin-left: 50px">章节比对</el-button>
             </el-col>
         </el-row>
 
@@ -50,10 +61,14 @@
         </el-row>
         <el-row class="diff-result">
             <el-col :span="12">
-                <div v-html="fileObj1.diffHtml"/>
+                <el-scrollbar max-height="600px">
+                    <div v-html="fileObj1.diffHtml"/>
+                </el-scrollbar>
             </el-col>
             <el-col :span="12">
-                <div v-html="fileObj2.diffHtml"/>
+                <el-scrollbar max-height="600px">
+                    <div v-html="fileObj2.diffHtml"/>
+                </el-scrollbar>
             </el-col>
         </el-row>
     </div>
@@ -80,6 +95,8 @@ const bothPageNumber = ref(1)
 const fileObj1 = reactive({
     pageNumber: 1,
     pageSize: 0,
+    checkStartPage: 1,
+    checkEndPage: 1,
     pdfData: null,
     pdfText: '',
     diffHtml: ''
@@ -87,10 +104,15 @@ const fileObj1 = reactive({
 const fileObj2 = reactive({
     pageNumber: 1,
     pageSize: 0,
+    checkStartPage: 1,
+    checkEndPage: 1,
     pdfData: null,
     pdfText: '',
     diffHtml: ''
 })
+
+// 组件效果
+let allTextLoading = ref(false)
 
 // PDF数据加载
 const loadPdfData1 = (uploadFile) => {
@@ -106,6 +128,8 @@ const loadPdfData = (uploadFile, fileObj) => {
         fileObj.pdfData = reader.result
         fileObj.pageNumber = 1
         fileObj.pageSize = 0
+        fileObj.checkStartPage = 1
+        fileObj.checkEndPage = 1
     }
 }
 
@@ -148,53 +172,53 @@ const loadPdfText = (pdfDoc, fileObj) => {
     if (fileObj.pageSize == 0) {
         fileObj.pageSize = pdfDoc.numPages
     }
-    if (fileObj.pageNumber > fileObj.pageSize) {
-        ElMessage.error(`不能超过最大页数${fileObj.pageSize}`)
-        return
-    }
+
     pdfDoc.getPage(fileObj.pageNumber).then((page) => {
         page.getTextContent().then((textContent) => {
-            // 计算最大横坐标
-            let maxXCoord = 0
-            for(let i = 0; i < textContent.items.length; i++) {
-                let item = textContent.items[i]
-                let itemXCoord = item.transform[4] + item.width
-                if (itemXCoord > maxXCoord) {
-                    maxXCoord = itemXCoord
-                }
-            }
-
-            // 获取文本
-            let text = ''
-            for(let i = 0; i < textContent.items.length; i++) {
-                let item = textContent.items[i]
-                text = text + item.str
-                // 添加换行符
-                if (i < textContent.items.length - 1) {
-                    let nextItem = textContent.items[i+1]
-                    let itemXCoord = item.transform[4] + item.width
-                    if ((item.transform[5] - nextItem.transform[5] > item.height)
-                        && (keepLineBreak || itemXCoord < maxXCoord - 10)) {
-                        text = text + '\n'
-                    }
-                }
-            }
-            fileObj.pdfText = text
-
-            // 文本比对
-            textCheck()
+            fileObj.pdfText = parsePdfText(textContent)
+        }).then((res) => {
+            textCheck(fileObj1.pdfText, fileObj2.pdfText)
         })
     }).catch(error => {
         ElMessage.error(error.message)
     })
 }
 
+const parsePdfText = (textContent) => {
+    // 计算最大横坐标
+    let maxXCoord = 0
+    for(let i = 0; i < textContent.items.length; i++) {
+        let item = textContent.items[i]
+        let itemXCoord = item.transform[4] + item.width
+        if (itemXCoord > maxXCoord) {
+            maxXCoord = itemXCoord
+        }
+    }
+
+    // 获取文本
+    let text = ''
+    for(let i = 0; i < textContent.items.length; i++) {
+        let item = textContent.items[i]
+        text = text + item.str
+        // 添加换行符
+        if (i < textContent.items.length - 1) {
+            let nextItem = textContent.items[i+1]
+            let itemXCoord = item.transform[4] + item.width
+            if ((item.transform[5] - nextItem.transform[5] > item.height)
+                && (keepLineBreak || itemXCoord < maxXCoord - 10)) {
+                text = text + '\n'
+            }
+        }
+    }
+    return text
+}
+
 // PDF文本比对
-const textCheck = () => {
-    // let text1 = fileObj1.pdfText.replaceAll(/(\.|!|\?|,|;)/g, '$1\n')
-    // let text2 = fileObj2.pdfText.replaceAll(/(\.|!|\?|,|;)/g, '$1\n')
-    let text1 = fileObj1.pdfText.replaceAll(/(\.|!|\?)/g, '$1\n')
-    let text2 = fileObj2.pdfText.replaceAll(/(\.|!|\?)/g, '$1\n')
+const textCheck = (pdfText1, pdfText2) => {
+    // let text1 = pdfText1.replaceAll(/(\.|!|\?|,|;)/g, '$1\n')
+    // let text2 = pdfText2.replaceAll(/(\.|!|\?|,|;)/g, '$1\n')
+    let text1 = pdfText1.replaceAll(/(\.|!|\?)/g, '$1\n')
+    let text2 = pdfText2.replaceAll(/(\.|!|\?)/g, '$1\n')
 
     // 解决PDF读取中文标点转英文的问题
     text1 = toSBC(text1)
@@ -219,6 +243,36 @@ const textCheck = () => {
     html2 = html2.replaceAll("\n", "<br/>")
     fileObj1.diffHtml = html1
     fileObj2.diffHtml = html2
+}
+
+const allTextCheck = () => {
+    allTextLoading.value = true
+    let pdfTextsP1 = parsePdfTexts(pdfDoc1, fileObj1.checkStartPage, fileObj1.checkEndPage)
+    let pdfTextsP2 = parsePdfTexts(pdfDoc2, fileObj2.checkStartPage, fileObj2.checkEndPage)
+    Promise.all([pdfTextsP1, pdfTextsP2]).then(res => {
+        let pdfText1 = res[0].join('\n')
+        let pdfText2 = res[1].join('\n')
+        textCheck(pdfText1, pdfText2)
+    }).finally(() => {
+        allTextLoading.value = false
+    })
+}
+
+const parsePdfTexts = (pdfDoc, startPage, endPage) => {
+    let promises = []
+    for (let pageNo = startPage; pageNo <= endPage; pageNo++) {
+        promises.push(new Promise((resolve, reject) => {
+            pdfDoc.getPage(pageNo).then((page) => {
+                page.getTextContent().then((textContent) => {
+                    let pdfText = parsePdfText(textContent)
+                    resolve(pdfText)
+                })
+            }).catch(error => {
+                ElMessage.error(error.message)
+            })
+        }))
+    }
+    return Promise.all(promises)
 }
 
 const buildValueHtml = (diffHtml, value, color) => {

@@ -37,7 +37,7 @@
                 <el-text class="mx-1">页码范围：</el-text>
                 <el-input-number v-model="checkStartPage" :min="1" :max="pageSize" :precision="0" :controls="false" style="width: 75px"/> ~
                 <el-input-number v-model="checkEndPage" :min="1" :max="pageSize" :precision="0" :controls="false" style="width: 75px"/>
-                <el-button type="primary" @click="textCheck" style="width: 100px; margin-left: 20px">去重</el-button>
+                <el-button type="primary" :loading="textLoading" :disabled="textLoading" @click="textCheck" style="width: 100px; margin-left: 20px">去重</el-button>
             </el-col>
         </el-row>
     </div>
@@ -59,8 +59,11 @@ let pageSize = ref(0)
 let checkStartPage = ref(1)
 let checkEndPage = ref(1)
 let diffHtml = ref('')
+
+// 组件效果
 let pdfDiv = ref(0)
 let pdfHeigh = ref(0)
+let textLoading = ref(false)
 
 // PDF数据加载
 const loadPdfData = (uploadFile) => {
@@ -90,40 +93,46 @@ const textCheck = () => {
     // 设置文本滚动高度
     pdfHeigh.value = pdfDiv.value.offsetHeight
 
+    textLoading.value = true
     parsePdfTexts().then(pdfTexts => {
         let pdfText = pdfTexts.join('\n')
-        // 解决PDF读取中文标点转英文的问题
-        pdfText = toSBC(pdfText)
-
-        let textItems = pdfText.split('\n')
-        // 找出重复项
-        let dupMap = {}
-        textItems.forEach((textItem) => {
-            // 去掉引用开头的[1]
-            let newTextItem = textItem.replaceAll(/^\[.*?\]/g, '')
-            if (dupMap[newTextItem] == null) {
-                dupMap[newTextItem] = false
-            } else if (dupMap[newTextItem] == false) {
-                dupMap[newTextItem] = true
-            }
-        })
-
-        // html拼接
-        let html = ''
-        textItems.forEach((textItem) => {
-            let newTextItem = textItem.replaceAll(/^\[.*?\]/g, '')
-            if (dupMap[newTextItem]) {
-                html = buildValueHtml(html, textItem, '#ffb6ba')
-            } else {
-                html = buildValueHtml(html, textItem, '#fff')
-            }
-            html = html + '<br/>'
-        });
-
-        diffHtml.value = html
+        diffHtml.value = parseDiffHtml(pdfText)
     }).catch(error => {
         ElMessage.error(error.message)
+    }).finally(() => {
+        textLoading.value = false
     })
+}
+
+const parseDiffHtml = (pdfText) => {
+    // 解决PDF读取中文标点转英文的问题
+    pdfText = toSBC(pdfText)
+
+    let textItems = pdfText.split('\n')
+    // 找出重复项
+    let dupMap = {}
+    textItems.forEach((textItem) => {
+        // 去掉引用开头的[1]
+        let newTextItem = textItem.replaceAll(/^\[.*?\]/g, '')
+        if (dupMap[newTextItem] == null) {
+            dupMap[newTextItem] = false
+        } else if (dupMap[newTextItem] == false) {
+            dupMap[newTextItem] = true
+        }
+    })
+
+    // html拼接
+    let html = ''
+    textItems.forEach((textItem) => {
+        let newTextItem = textItem.replaceAll(/^\[.*?\]/g, '')
+        if (dupMap[newTextItem]) {
+            html = buildValueHtml(html, textItem, '#ffb6ba')
+        } else {
+            html = buildValueHtml(html, textItem, '#fff')
+        }
+        html = html + '<br/>'
+    });
+    return html
 }
 
 // 加载多页文本
@@ -138,31 +147,7 @@ const parsePdfTexts = () => {
             pdfDoc.getPage(pageNo).then((page) => {
                 page.getTextContent().then((textContent) => {
                     // console.log(textContent)
-                    // 计算最大横坐标
-                    let maxXCoord = 0
-                    for(let i = 0; i < textContent.items.length; i++) {
-                        let item = textContent.items[i]
-                        let itemXCoord = item.transform[4] + item.width
-                        if (itemXCoord > maxXCoord) {
-                            maxXCoord = itemXCoord
-                        }
-                    }
-
-                    // 获取文本
-                    let pdfText = ''
-                    for(let i = 0; i < textContent.items.length; i++) {
-                        let item = textContent.items[i]
-                        pdfText = pdfText + item.str
-                        // 添加换行符
-                        if (i < textContent.items.length - 1) {
-                            let nextItem = textContent.items[i+1]
-                            let itemXCoord = item.transform[4] + item.width
-                            if ((item.transform[5] - nextItem.transform[5] > item.height)
-                                && (itemXCoord < maxXCoord - 10)) {
-                                pdfText = pdfText + '\n'
-                            }
-                        }
-                    }
+                    let pdfText = parsePdfText(textContent)
                     resolve(pdfText)
                 })
             }).catch(error => {
@@ -171,6 +156,35 @@ const parsePdfTexts = () => {
         }))
     }
     return Promise.all(promises)
+}
+
+const parsePdfText = (textContent) => {
+    // 计算最大横坐标
+    let maxXCoord = 0
+    for(let i = 0; i < textContent.items.length; i++) {
+        let item = textContent.items[i]
+        let itemXCoord = item.transform[4] + item.width
+        if (itemXCoord > maxXCoord) {
+            maxXCoord = itemXCoord
+        }
+    }
+
+    // 获取文本
+    let text = ''
+    for(let i = 0; i < textContent.items.length; i++) {
+        let item = textContent.items[i]
+        text = text + item.str
+        // 添加换行符
+        if (i < textContent.items.length - 1) {
+            let nextItem = textContent.items[i+1]
+            let itemXCoord = item.transform[4] + item.width
+            if ((item.transform[5] - nextItem.transform[5] > item.height)
+                && (itemXCoord < maxXCoord - 10)) {
+                text = text + '\n'
+            }
+        }
+    }
+    return text
 }
 
 const toSBC = (str) => {

@@ -3,6 +3,16 @@
 </template>
 
 <script setup>
+import { inject } from 'vue'
+
+const $globalState = inject('$globalState')
+
+document.onkeydown = (event) => {
+    let key = window.event.keyCode;
+    if (event.ctrlKey && key === 75) {
+        $globalState.vip = !$globalState.vip
+    }
+}
 </script>
 
 <style>

@@ -48,7 +48,17 @@ const router = createRouter({
         name: 'refDupCheck',
         meta: { title: 'refDupCheck', keepAlive: true }
       }]
-    }
+    },
+    {
+      path: '/pdfCheck',
+      component: Layout,
+      children: [{
+        path: '',
+        component: () => import('@/views/PDFCheck.vue'),
+        name: 'pdfCheck',
+        meta: { title: 'pdfCheck', keepAlive: true }
+      }]
+    },
   ]
 })
 

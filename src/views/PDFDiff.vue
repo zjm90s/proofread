@@ -27,19 +27,19 @@
         <el-row class="diff-pdf-page" v-if="fileObj1.pageSize || fileObj2.pageSize">
             <el-col :span="7">
                 <div v-if="fileObj1.pageSize">
-                    <el-text class="mx-1">文件1-共{{fileObj1.pageSize}}页-页码：</el-text>
+                    <el-text class="mx-1">文件1 - 共{{fileObj1.pageSize}}页 - 页码：</el-text>
                     <el-input-number v-model="fileObj1.pageNumber" :min="1" :max="fileObj1.pageSize" :precision="0" @change="pageTurning1" style="width: 130px"/>
                 </div>
             </el-col>
             <el-col :span="10">
                 <div v-if="fileObj1.pageSize && fileObj2.pageSize">
-                    <el-text class="mx-1">文件1和2-页码：</el-text>
+                    <el-text class="mx-1">文件1和2 - 页码：</el-text>
                     <el-input-number v-model="bothPageNumber" :min="1" :precision="0" @change="bothPageTurning" style="width: 130px"/>
                 </div>
             </el-col>
             <el-col :span="7">
                 <div v-if="fileObj2.pageSize">
-                    <el-text class="mx-1">文件2-共{{fileObj2.pageSize}}页-页码：</el-text>
+                    <el-text class="mx-1">文件2 - 共{{fileObj2.pageSize}}页 - 页码：</el-text>
                     <el-input-number v-model="fileObj2.pageNumber" :min="1" :max="fileObj2.pageSize" :precision="0" @change="pageTurning2" style="width: 130px"/>
                 </div>
             </el-col>

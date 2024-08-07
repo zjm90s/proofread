@@ -30,7 +30,7 @@
         </el-row>
         <el-row class="diff-pdf-page" v-if="pageSize">
             <el-col :span="12">
-                <el-text class="mx-1">文件-共{{pageSize}}页-页码：</el-text>
+                <el-text class="mx-1">共{{pageSize}}页 - 页码：</el-text>
                 <el-input-number v-model="pageNumber" :min="1" :max="pageSize" :precision="0"/>
             </el-col>
             <el-col :span="12">

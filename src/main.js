@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, reactive } from 'vue'
 import App from './App.vue'
 import router from './router'
 
@@ -10,5 +10,10 @@ const app = createApp(App)
 
 app.use(router)
 app.use(ElementPlus)
+
+app.provide('$globalState', reactive({
+    vip: false,
+    settingVisible: false
+}))
 
 app.mount('#app')

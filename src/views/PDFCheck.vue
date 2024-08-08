@@ -56,6 +56,7 @@ import * as Diff from 'diff'
 import VuePdfEmbed from 'vue-pdf-embed'
 import 'vue-pdf-embed/dist/style/index.css'
 import 'vue-pdf-embed/dist/style/textLayer.css'
+import {AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY} from '@/constants/constant'
 
 const $globalState = inject('$globalState')
 
@@ -99,11 +100,7 @@ const loadPdfData0 = (uploadFile, fileObj, isMainFile) => {
     reader.onload = () => {
         fileObj.pdfData = reader.result
         fileObj.pageSize = 0
-        if (isMainFile) {
-            fileObj.pageNumber = 1
-        } else {
-            fileObj.pageNumber = 2
-        }
+        fileObj.pageNumber = isMainFile ? 1 : 2
     }
 }
 
@@ -302,21 +299,23 @@ const aiCheck = async (pageNumber, text) => {
         return result
     }
 
-    let apiKey = Cookies.get('ai_secret_key')
-    if (apiKey == null || apiKey == '') {
+    let apiKey = Cookies.get(AI_SECRET_KEY)
+    if (!apiKey) {
         throw new Error('秘钥未设置')
     }
+    let model = Cookies.get(AI_MODEL_KEY) ?? 'gpt-4o'
+    let prompt = Cookies.get(AI_PROMPT_KEY) ?? '作为专业编辑，帮我校对以下内容，纯文本返回'
+
     const openai = new OpenAI({
         baseURL: 'https://api.gptsapi.net/v1',
         apiKey: apiKey,
         dangerouslyAllowBrowser: true
     })
     const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        // model: "gpt-4o-mini",
+        model: model,
         temperature: 0,
         messages: [
-            {"role": "system", "content": "作为专业编辑，帮我校对以下内容，纯文本返回"},
+            {"role": "system", "content": prompt},
             {"role": "user", "content": text}
         ]
     })

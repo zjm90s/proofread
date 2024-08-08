@@ -303,8 +303,14 @@ const aiCheck = async (pageNumber, text) => {
     if (!apiKey) {
         throw new Error('秘钥未设置')
     }
-    let model = Cookies.get(AI_MODEL_KEY) ?? 'gpt-4o'
-    let prompt = Cookies.get(AI_PROMPT_KEY) ?? '作为专业编辑，帮我校对以下内容，纯文本返回'
+    let model = Cookies.get(AI_MODEL_KEY)
+    if (!model) {
+        model = 'gpt-4o'
+    }
+    let prompt = Cookies.get(AI_PROMPT_KEY)
+    if (!prompt) {
+        prompt = '作为专业编辑，帮我校对以下内容，纯文本返回不要加markdown语法'
+    }
 
     const openai = new OpenAI({
         baseURL: 'https://api.gptsapi.net/v1',

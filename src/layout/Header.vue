@@ -15,7 +15,7 @@
         <el-menu-item index="/pdfCheck" v-if="$globalState.vip">PDF校对</el-menu-item>
     </el-menu>
 
-    <div class="setting" @click="openSetting">
+    <div class="setting" v-if="$globalState.vip" @click="openSetting">
         <el-icon><Setting/></el-icon>
     </div>
 

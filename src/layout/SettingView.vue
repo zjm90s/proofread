@@ -6,7 +6,7 @@
             </el-form-item>
         </el-form>
         <template #footer>
-            <div class="dialog-footer">
+            <div>
                 <el-button @click="$globalState.settingVisible = false">取消</el-button>
                 <el-button type="primary" @click="onSubmit">保存</el-button>
             </div>

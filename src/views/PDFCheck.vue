@@ -309,7 +309,7 @@ const aiCheck = async (pageNumber, text) => {
     }
     let prompt = Cookies.get(AI_PROMPT_KEY)
     if (!prompt) {
-        prompt = '作为专业编辑，帮我校对以下内容，纯文本返回不要加markdown语法'
+        prompt = '作为专业编辑，帮我校对以下内容，纯文本返回不要加Markdown语法'
     }
 
     const openai = new OpenAI({

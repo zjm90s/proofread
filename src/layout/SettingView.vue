@@ -6,9 +6,9 @@
             </el-form-item>
             <el-form-item label="模型" :label-width="formLabelWidth">
                 <el-select v-model="form.aiModel" default="gpt-4o">
-                    <el-option label="最新版" value="gpt-4o-2024-08-06"/>
-                    <el-option label="专业版" value="gpt-4o"/>
                     <el-option label="轻量版" value="gpt-4o-mini"/>
+                    <el-option label="专业版" value="gpt-4o"/>
+                    <el-option label="最新版" value="gpt-4o-2024-08-06"/>
                 </el-select>
             </el-form-item>
             <el-form-item label="提示语" :label-width="formLabelWidth">
@@ -35,7 +35,7 @@ const formLabelWidth = '60'
 
 const form = reactive({
     aiSecretKey: Cookies.get(AI_SECRET_KEY) ?? '',
-    aiModel: Cookies.get(AI_MODEL_KEY) ?? 'gpt-4o-2024-08-06',
+    aiModel: Cookies.get(AI_MODEL_KEY) ?? 'gpt-4o-mini',
     aiPrompt: Cookies.get(AI_PROMPT_KEY) ?? ''
 })
 

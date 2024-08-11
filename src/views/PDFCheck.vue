@@ -305,7 +305,7 @@ const aiCheck = async (pageNumber, text) => {
     }
     let model = Cookies.get(AI_MODEL_KEY)
     if (!model) {
-        model = 'gpt-4o'
+        model = 'gpt-4o-mini'
     }
     let prompt = Cookies.get(AI_PROMPT_KEY)
     if (!prompt) {

@@ -321,8 +321,7 @@ const aiCheck = async (pageNumber, text) => {
         model: model,
         temperature: 0,
         messages: [
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": text}
+            {"role": "user", "content": `${prompt}：${text}`}
         ]
     })
     return completion.choices[0].message.content

@@ -84,6 +84,12 @@ const fileObj2 = reactive({
     pdfText: '',
     diffHtml: ''
 })
+const fileObj3 = reactive({
+    pageNumber: 3,
+    pageSize: 0,
+    pdfTextLoad: false,
+    pdfText: ''
+})
 const resultCache = {}
 
 // 组件效果
@@ -116,8 +122,13 @@ const pageTurning1 = () => {
     if (fileObj2.pageNumber > fileObj2.pageSize) {
         fileObj2.pageNumber = fileObj2.pageSize
     }
+    fileObj3.pageNumber = fileObj2.pageNumber + 1
+    if (fileObj3.pageNumber > fileObj3.pageSize) {
+        fileObj3.pageNumber = fileObj3.pageSize
+    }
     loadPdfText(pdfDoc1, fileObj1)
     loadPdfText(pdfDoc2, fileObj2)
+    loadPdfText(pdfDoc2, fileObj3)
 }
 
 // PDF文本获取
@@ -128,6 +139,7 @@ const loadPdfText1 = (pdfDoc) => {
 const loadPdfText2 = (pdfDoc) => {
     pdfDoc2 = pdfDoc
     loadPdfText(pdfDoc2, fileObj2)
+    loadPdfText(pdfDoc2, fileObj3)
 }
 const loadPdfText = (pdfDoc, fileObj) => {
     if (fileObj.pageSize == 0) {
@@ -140,7 +152,7 @@ const loadPdfText = (pdfDoc, fileObj) => {
         page.getTextContent().then((textContent) => {
             fileObj.pdfText = parsePdfText(textContent)
             fileObj.pdfTextLoad = true
-            textLoading.value = !(fileObj1.pdfTextLoad && fileObj2.pdfTextLoad)
+            textLoading.value = !(fileObj1.pdfTextLoad && fileObj2.pdfTextLoad && fileObj3.pdfTextLoad)
         })
     }).catch(error => {
         textLoading.value = false
@@ -181,7 +193,7 @@ const parsePdfText = (textContent) => {
 const textCheck = async () => {
     try {
         textLoading.value = true
-        await textCheck0(fileObj1)
+        await textCheck0(fileObj1, fileObj2)
     } catch (e) {
         let error = e.message.replaceAll('bewildcard', 'xxx').replaceAll('wildcard', 'xxx')
         ElMessage.error(error)
@@ -190,19 +202,31 @@ const textCheck = async () => {
         textLoading.value = false
     }
 
+    // 缓存第二页
     if (fileObj2.pageNumber == fileObj1.pageNumber + 1) {
-        let nextText = aiCheck(fileObj2.pageNumber, fileObj2.pdfText)
+        let fullText = toSBC(fileObj2.pdfText)
+        if (fileObj3.pageNumber == fileObj2.pageNumber + 1) {
+            let nextPdfText = toSBC(fileObj3.pdfText)
+            let nextPdfTextIndex = nextPdfText.indexOf('。')
+            nextPdfTextIndex = nextPdfTextIndex != -1 ? nextPdfTextIndex + 1 : nextPdfText.length
+            fullText = fullText + nextPdfText.substring(0, nextPdfTextIndex)
+        }
+        let nextText = aiCheck(fileObj2.pageNumber, fullText)
         resultCache[fileObj2.pageNumber] = nextText
     }
 }
 
-const textCheck0 = async (fileObj) => {
-    let text1 = fileObj.pdfText
-    // 解决PDF读取中文标点转英文的问题
-    text1 = toSBC(text1)
-    text1 = text1.replaceAll(/(。|！|？|!|\?)/g, '$1\n')
+const textCheck0 = async (fileObj, fileObjNext) => {
+    let fullText1 = toSBC(fileObj.pdfText)
+    if (fileObjNext.pageNumber == fileObj.pageNumber + 1) {
+        let nextPdfText = toSBC(fileObjNext.pdfText)
+        let nextPdfTextIndex = nextPdfText.indexOf('。')
+        nextPdfTextIndex = nextPdfTextIndex != -1 ? nextPdfTextIndex + 1 : nextPdfText.length
+        fullText1 = fullText1 + nextPdfText.substring(0, nextPdfTextIndex)
+    }
+    let text1 = fullText1.replaceAll(/(。|！|？|!|\?)/g, '$1\n')
     text1 = textTrim(text1)
-    let text2 = await aiCheck(fileObj.pageNumber, fileObj.pdfText)
+    let text2 = await aiCheck(fileObj.pageNumber, fullText1)
     text2 = text2.replaceAll(/(。|！|？|!|\?)/g, '$1\n')
     text2 = aiTextTrim(text2)
 
@@ -234,6 +258,7 @@ const buildValueHtml = (diffHtml, value, color) => {
     return diffHtml
 }
 
+// 解决PDF读取中文标点转英文的问题
 const toSBC = (str) => {
     let newStr = ''
     for(let i = 0; i < str.length; i++){

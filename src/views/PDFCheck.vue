@@ -191,8 +191,8 @@ const parsePdfText = (textContent) => {
     let containStopSign = false
     for(let i = 0; i < textContent.items.length; i++) {
         let item = textContent.items[i]
-        let itemXCoord = item.transform[4] + item.width
-        let itemYCoord = item.transform[5]
+        let itemXCoord = Math.trunc(item.transform[4] + item.width)
+        let itemYCoord = Math.trunc(item.transform[5])
 
         if (itemXCoord > maxXCoord) {
             maxXCoord = itemXCoord
@@ -227,7 +227,7 @@ const parsePdfText = (textContent) => {
         let lineText = textLine['str']
         if (itemYCoord == maxYCoord) {
             if (configure.removeHeader && maxYCoord >= globalMaxYCoord
-                && (/^.*第.+章.+$/.test(lineText) || maxYCoord == globalMaxYCoord)) {
+                && (/^.*第.+章(?!.*[􀪋…]).*$/.test(lineText) || maxYCoord == globalMaxYCoord)) {
                 // console.log(`"页眉"移除, itemYCoord: ${itemYCoord}, textLine: ${lineText}`)
                 if (maxYCoord > globalMaxYCoord) {
                     globalMaxYCoord = maxYCoord

@@ -1,10 +1,14 @@
 <template>
     <div class="pdf-check" v-if="$globalState.vip">
         <el-row class="pdf-upload">
-            <el-col>
+            <el-col :span="12">
                 <el-upload ref="pdfFile" :auto-upload="false" :limit="1" :on-change="loadPdfData" :on-exceed="fileReplace">
                     <el-button type="primary">上传文件</el-button>
                 </el-upload>
+            </el-col>
+            <el-col :span="12">
+                <el-text tag="b">移除页眉：</el-text>
+                <el-switch v-model="configure.removeHeader" @change="removeHeaderChange"/>
             </el-col>
         </el-row>
 
@@ -60,9 +64,13 @@ import {AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY} from '@/constants/constant'
 
 const $globalState = inject('$globalState')
 
-// 开关
-// 是否保留句子换行（即句子到达最右端的换行）
-let keepLineBreak = false
+// 页面配置
+const configure = reactive({
+    removeHeader: true
+})
+
+// 页面坐标
+let globalMaxYCoord = -1
 
 // 对象属性
 const pdfFile = ref()
@@ -90,10 +98,20 @@ const fileObj3 = reactive({
     pdfTextLoad: false,
     pdfText: ''
 })
-const resultCache = {}
+const resultCache = new Map()
 
 // 组件效果
 const textLoading = ref(false)
+
+// 配置变更
+const removeHeaderChange = () => {
+    resultCache.clear()
+    if (pdfDoc1) {
+        loadPdfText(pdfDoc1, fileObj1)
+        loadPdfText(pdfDoc2, fileObj2)
+        loadPdfText(pdfDoc2, fileObj3)
+    }
+}
 
 // PDF数据加载
 const loadPdfData = (uploadFile) => {
@@ -161,32 +179,73 @@ const loadPdfText = (pdfDoc, fileObj) => {
 }
 
 const parsePdfText = (textContent) => {
-    // 计算最大横坐标
+    // 最右端坐标
     let maxXCoord = 0
+    // 最上方坐标
+    let maxYCoord = 0
+    // 最下方坐标
+    let minYCoord = 1_0000_0000
+    // 文本行
+    let textLines = new Map()
+    // 是否包含结束符
+    let containStopSign = false
     for(let i = 0; i < textContent.items.length; i++) {
         let item = textContent.items[i]
         let itemXCoord = item.transform[4] + item.width
+        let itemYCoord = item.transform[5]
+
         if (itemXCoord > maxXCoord) {
             maxXCoord = itemXCoord
+        }
+        if (itemYCoord < minYCoord) {
+            minYCoord = itemYCoord
+        }
+        if (itemYCoord > maxYCoord) {
+            maxYCoord = itemYCoord
+        }
+
+        if (textLines.has(itemYCoord)) {
+            textLines.set(itemYCoord, {
+                "str": textLines.get(itemYCoord)['str'] + item.str,
+                "maxXCoord": itemXCoord
+            })
+        } else {
+            textLines.set(itemYCoord, {
+                "str": item.str,
+                "maxXCoord": itemXCoord
+            })
+        }
+
+        if (!containStopSign && toSBC(item.str).includes('。')) {
+            containStopSign = true
         }
     }
 
     // 获取文本
     let text = ''
-    for(let i = 0; i < textContent.items.length; i++) {
-        let item = textContent.items[i]
-        text = text + item.str
-        // 添加换行符
-        if (i < textContent.items.length - 1) {
-            let nextItem = textContent.items[i+1]
-            let itemXCoord = item.transform[4] + item.width
-            if ((item.transform[5] - nextItem.transform[5] > item.height)
-                && (keepLineBreak || itemXCoord < maxXCoord - 10)) {
-                text = text + '\n'
+    for(const [itemYCoord, textLine] of textLines) {
+        let lineText = textLine['str']
+        if (itemYCoord == maxYCoord) {
+            if (configure.removeHeader && maxYCoord >= globalMaxYCoord
+                && (/^.*第.+章.+$/.test(lineText) || maxYCoord == globalMaxYCoord)) {
+                // console.log(`"页眉"移除, itemYCoord: ${itemYCoord}, textLine: ${lineText}`)
+                if (maxYCoord > globalMaxYCoord) {
+                    globalMaxYCoord = maxYCoord
+                }
+                continue
+            }
+        } else if (itemYCoord == minYCoord) {
+            if (/^[0-9 ·０１２３４５６７８９]+$/.test(lineText)) {
+                continue
             }
         }
+        text = text + lineText
+        // 添加换行符
+        if (textLine['maxXCoord'] < maxXCoord - 10 || !containStopSign) {
+            text = text + '\n'
+        }
     }
-    return text
+    return text.trim()
 }
 
 // PDF文本比对
@@ -195,7 +254,7 @@ const textCheck = async () => {
         textLoading.value = true
         await textCheck0(fileObj1, fileObj2)
     } catch (e) {
-        let error = e.message.replaceAll('bewildcard', 'xxx').replaceAll('wildcard', 'xxx')
+        let error = e.message.replaceAll(/bewildcard|wildcard/g, 'xxx')
         ElMessage.error(error)
         return
     } finally {
@@ -205,20 +264,20 @@ const textCheck = async () => {
     // 缓存第二页
     if (fileObj2.pageNumber == fileObj1.pageNumber + 1) {
         let fullText = toSBC(fileObj2.pdfText)
-        if (fileObj3.pageNumber == fileObj2.pageNumber + 1) {
+        if (fullText.includes('。') && !fullText.endsWith('。') && fileObj3.pageNumber == fileObj2.pageNumber + 1) {
             let nextPdfText = toSBC(fileObj3.pdfText)
             let nextPdfTextIndex = nextPdfText.indexOf('。')
             nextPdfTextIndex = nextPdfTextIndex != -1 ? nextPdfTextIndex + 1 : nextPdfText.length
             fullText = fullText + nextPdfText.substring(0, nextPdfTextIndex)
         }
         let nextText = aiCheck(fileObj2.pageNumber, fullText)
-        resultCache[fileObj2.pageNumber] = nextText
+        resultCache.set(fileObj2.pageNumber, nextText)
     }
 }
 
 const textCheck0 = async (fileObj, fileObjNext) => {
     let fullText1 = toSBC(fileObj.pdfText)
-    if (fileObjNext.pageNumber == fileObj.pageNumber + 1) {
+    if (fullText1.includes('。') && !fullText1.endsWith('。') && fileObjNext.pageNumber == fileObj.pageNumber + 1) {
         let nextPdfText = toSBC(fileObjNext.pdfText)
         let nextPdfTextIndex = nextPdfText.indexOf('。')
         nextPdfTextIndex = nextPdfTextIndex != -1 ? nextPdfTextIndex + 1 : nextPdfText.length
@@ -264,7 +323,7 @@ const toSBC = (str) => {
     for(let i = 0; i < str.length; i++){
         switch (str[i]) {
             case '.':
-                if (i != 0 && !/^[0-9]$/.test(str[i-1])) {
+                if (i != 0 && !/^[0-9a-zA-Z]$/.test(str[i-1])) {
                     newStr += '。';
                 } else {
                     newStr += str[i]
@@ -319,7 +378,7 @@ const aiTextTrim = (str) => {
 }
 
 const aiCheck = async (pageNumber, text) => {
-    let result = resultCache[pageNumber]
+    let result = resultCache.get(pageNumber)
     if (result) {
         return result
     }

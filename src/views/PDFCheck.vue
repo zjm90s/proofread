@@ -26,7 +26,7 @@
         <el-row class="diff-pdf-page" v-if="fileObj1.pageSize">
             <el-col :span="12">
                 <el-text class="mx-1">共{{fileObj1.pageSize}}页 - 页码：</el-text>
-                <el-input-number v-model="fileObj1.pageNumber" :min="1" :max="fileObj1.pageSize" :precision="0" :disabled="textLoading" @change="pageTurning1"/>
+                <el-input-number v-model="fileObj1.pageNumber" :min="1" :max="fileObj1.pageSize" :precision="0" @change="pageTurning1" :disabled="textLoading"/>
             </el-col>
             <el-col :span="12">
                 <el-button type="primary" :loading="textLoading" :disabled="textLoading" @click="textCheck" style="width: 100px; margin-left: 20px">校对</el-button>
@@ -69,62 +69,64 @@ const configure = reactive({
     removeHeader: true
 })
 
+// 组件效果
+const textLoading = ref(false)
+
 // 页面坐标
 let globalMaxYCoord = -1
+
+// 缓存
+const resultCache = new Map()
 
 // 对象属性
 const pdfFile = ref()
 let pdfDoc1 = null
 let pdfDoc2 = null
-const fileObj1 = reactive({
+const _fileObj = {
     pageNumber: 1,
     pageSize: 0,
     pdfData: null,
     pdfTextLoad: false,
+    pdfTextItems: null,
     pdfText: '',
     diffHtml: ''
-})
-const fileObj2 = reactive({
-    pageNumber: 2,
-    pageSize: 0,
-    pdfData: null,
-    pdfTextLoad: false,
-    pdfText: '',
-    diffHtml: ''
-})
-const fileObj3 = reactive({
-    pageNumber: 3,
-    pageSize: 0,
-    pdfTextLoad: false,
-    pdfText: ''
-})
-const resultCache = new Map()
+}
+const fileObj1 = reactive({ ..._fileObj })
+const fileObj2 = reactive({ ..._fileObj })
+const fileObj3 = reactive({ ..._fileObj })
 
-// 组件效果
-const textLoading = ref(false)
+// 数据重置
+const resetData = () => {
+    // 组件效果
+    textLoading.value = false
+    // 页面坐标
+    globalMaxYCoord = -1
+    // 缓存
+    resultCache.clear()
+    // 对象属性
+    Object.assign(fileObj1, { ..._fileObj })
+    Object.assign(fileObj2, { ..._fileObj })
+    Object.assign(fileObj3, { ..._fileObj })
+}
 
 // 配置变更
 const removeHeaderChange = () => {
     resultCache.clear()
-    if (pdfDoc1) {
-        loadPdfText(pdfDoc1, fileObj1)
-        loadPdfText(pdfDoc2, fileObj2)
-        loadPdfText(pdfDoc2, fileObj3)
-    }
+    fileObj1.pdfText = parsePdfText(fileObj1.pdfTextItems)
+    fileObj2.pdfText = parsePdfText(fileObj2.pdfTextItems)
+    fileObj3.pdfText = parsePdfText(fileObj3.pdfTextItems)
 }
 
 // PDF数据加载
 const loadPdfData = (uploadFile) => {
-    loadPdfData0(uploadFile, fileObj1, true)
-    loadPdfData0(uploadFile, fileObj2, false)
+    loadPdfData0(uploadFile, fileObj1)
+    loadPdfData0(uploadFile, fileObj2)
 }
-const loadPdfData0 = (uploadFile, fileObj, isMainFile) => {
+const loadPdfData0 = (uploadFile, fileObj) => {
     let reader = new FileReader();
     reader.readAsArrayBuffer(uploadFile.raw)
     reader.onload = () => {
         fileObj.pdfData = reader.result
-        fileObj.pageSize = 0
-        fileObj.pageNumber = isMainFile ? 1 : 2
     }
 }
 
@@ -132,6 +134,7 @@ const loadPdfData0 = (uploadFile, fileObj, isMainFile) => {
 const fileReplace = (files) => {
     pdfFile.value?.clearFiles()
     pdfFile.value?.handleStart(files[0])
+    resetData()
 }
 
 // PDF翻页
@@ -152,15 +155,16 @@ const pageTurning1 = () => {
 // PDF文本获取
 const loadPdfText1 = (pdfDoc) => {
     pdfDoc1 = pdfDoc
-    loadPdfText(pdfDoc1, fileObj1)
+    loadPdfText(pdfDoc1, fileObj1, 1)
 }
 const loadPdfText2 = (pdfDoc) => {
     pdfDoc2 = pdfDoc
-    loadPdfText(pdfDoc2, fileObj2)
-    loadPdfText(pdfDoc2, fileObj3)
+    loadPdfText(pdfDoc2, fileObj2, 2)
+    loadPdfText(pdfDoc2, fileObj3, 3)
 }
-const loadPdfText = (pdfDoc, fileObj) => {
+const loadPdfText = (pdfDoc, fileObj, pageNumber) => {
     if (fileObj.pageSize == 0) {
+        fileObj.pageNumber = pageNumber
         fileObj.pageSize = pdfDoc.numPages
     }
 
@@ -168,6 +172,7 @@ const loadPdfText = (pdfDoc, fileObj) => {
     fileObj.pdfTextLoad = false
     pdfDoc.getPage(fileObj.pageNumber).then((page) => {
         page.getTextContent().then((textContent) => {
+            fileObj.pdfTextItems = textContent
             fileObj.pdfText = parsePdfText(textContent)
             fileObj.pdfTextLoad = true
             textLoading.value = !(fileObj1.pdfTextLoad && fileObj2.pdfTextLoad && fileObj3.pdfTextLoad)
@@ -378,6 +383,9 @@ const aiTextTrim = (str) => {
 }
 
 const aiCheck = async (pageNumber, text) => {
+    if (text == null || text.trim() == '') {
+        return ''
+    }
     let result = resultCache.get(pageNumber)
     if (result) {
         return result

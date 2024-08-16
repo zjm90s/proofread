@@ -22,4 +22,25 @@ body {
 #app {
     color: var(--el-text-color-primary);
 }
+
+.diff-item {
+    white-space: pre-wrap;
+    border-radius: .2em;
+    background-color: #fff;
+ }
+.diff-item-add {
+    white-space: pre-wrap;
+    border-radius: .2em;
+    background-color: #97f295;
+}
+.diff-item-remove {
+    white-space: pre-wrap;
+    border-radius: .2em;
+    background-color: #ffb6ba;
+}
+.diff-item-error {
+    white-space: pre-wrap;
+    border-radius: .2em;
+    background-color: #5df2ef;
+}
 </style>

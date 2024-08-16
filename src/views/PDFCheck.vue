@@ -61,6 +61,7 @@ import VuePdfEmbed from 'vue-pdf-embed'
 import 'vue-pdf-embed/dist/style/index.css'
 import 'vue-pdf-embed/dist/style/textLayer.css'
 import {AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY} from '@/constants/constant'
+import proofreadDictData from '@/dict/proofread_dict.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -77,6 +78,9 @@ let globalMaxYCoord = -1
 
 // 缓存
 const resultCache = new Map()
+
+// 数据字典
+const proofreadDict = new Map()
 
 // 对象属性
 const pdfFile = ref()
@@ -117,8 +121,31 @@ const removeHeaderChange = () => {
     fileObj3.pdfText = parsePdfText(fileObj3.pdfTextItems)
 }
 
+// PDF文件替换
+const fileReplace = (files) => {
+    pdfFile.value?.clearFiles()
+    pdfFile.value?.handleStart(files[0])
+    resetData()
+}
+
+const loadProofreadDict = () => {
+    let lines = proofreadDictData.split('\n')
+    for (let line of lines) {
+        line = line.trim()
+        if (line == '' || line.startsWith('#')) {
+            continue
+        }
+        let keyValue = line.split(':')
+        let errorWords = keyValue[1].split(',')
+        for (let errorWord of errorWords) {
+            proofreadDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+        }
+    }
+}
+
 // PDF数据加载
 const loadPdfData = (uploadFile) => {
+    loadProofreadDict()
     loadPdfData0(uploadFile, fileObj1)
     loadPdfData0(uploadFile, fileObj2)
 }
@@ -128,13 +155,6 @@ const loadPdfData0 = (uploadFile, fileObj) => {
     reader.onload = () => {
         fileObj.pdfData = reader.result
     }
-}
-
-// PDF文件替换
-const fileReplace = (files) => {
-    pdfFile.value?.clearFiles()
-    pdfFile.value?.handleStart(files[0])
-    resetData()
 }
 
 // PDF翻页
@@ -301,12 +321,16 @@ const textCheck0 = async (fileObj, fileObjNext) => {
     let html2 = ''
     diffItems.forEach((part) => {
         if (part.added) {
-            html2 = buildValueHtml(html2, part.value, '#97f295')
+            if (part.value.includes('<span ') || part.value.includes('</span>')) {
+                html2 = html2 + part.value
+            } else {
+                html2 = html2 + buildValueHtml(part.value, 'add')
+            }
         } else if (part.removed) {
-            html1 = buildValueHtml(html1, part.value, '#ffb6ba')
+            html1 = html1 + buildValueHtml(part.value, 'remove')
         } else {
-            html1 = buildValueHtml(html1, part.value, '#fff')
-            html2 = buildValueHtml(html2, part.value, '#fff')
+            html1 = html1 + buildValueHtml(part.value)
+            html2 = html2 + buildValueHtml(part.value)
         }
     });
 
@@ -316,10 +340,10 @@ const textCheck0 = async (fileObj, fileObjNext) => {
     fileObj2.diffHtml = html2
 }
 
-const buildValueHtml = (diffHtml, value, color) => {
-    diffHtml = diffHtml + '<span style="white-space: pre-wrap; border-radius: .2em; background-color: '
-        + color + '">' + value + '</span>'
-    return diffHtml
+const buildValueHtml = (value, type) => {
+    // type: add,remove,error
+    let css = type ? 'diff-item-' + type : 'diff-item'
+    return `<span class="${css}">${value}</span>`
 }
 
 // 解决PDF读取中文标点转英文的问题
@@ -416,7 +440,16 @@ const aiCheck = async (pageNumber, text) => {
             {"role": "user", "content": `${prompt}：${text}`}
         ]
     })
-    return completion.choices[0].message.content
+    let content = completion.choices[0].message.content
+    content = parseErrorWord(content)
+    return content
+}
+
+const parseErrorWord = (content) => {
+    const keys = Array.from(proofreadDict.keys()).join('|')
+    const regex = new RegExp(keys, 'g');
+    content = content.replace(regex, (matched) => proofreadDict.get(matched))
+    return content
 }
 </script>
 

@@ -43,9 +43,4 @@ body {
     border-radius: .2em;
     background-color: #5df2ef;
 }
-.diff-item-similar {
-    white-space: pre-wrap;
-    border-radius: .2em;
-    background-color: #f6fa7e;
-}
 </style>

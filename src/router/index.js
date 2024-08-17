@@ -59,6 +59,16 @@ const router = createRouter({
         meta: { title: 'pdfCheck', keepAlive: true }
       }]
     },
+    {
+      path: '/proofDict',
+      component: Layout,
+      children: [{
+        path: '',
+        component: () => import('@/views/ProofDict.vue'),
+        name: 'proofDict',
+        meta: { title: 'proofDict', keepAlive: true }
+      }]
+    },
   ]
 })
 

@@ -57,11 +57,13 @@ import { ElMessage } from 'element-plus'
 import Cookies from 'js-cookie'
 import OpenAI from 'openai'
 import * as Diff from 'diff'
+import { distance } from 'fastest-levenshtein'
+import { Segment, useDefault } from 'segmentit'
 import VuePdfEmbed from 'vue-pdf-embed'
-import 'vue-pdf-embed/dist/style/index.css'
-import 'vue-pdf-embed/dist/style/textLayer.css'
+import 'vue-pdf-embed/dist/styles/textLayer.css'
+
 import {AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY} from '@/constants/constant'
-import proofreadDictData from '@/dict/proofread_dict.txt?raw'
+import proofDictData from '@/dict/proof_dict.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -70,17 +72,21 @@ const configure = reactive({
     removeHeader: true
 })
 
+// 分词组件
+const segmentit = useDefault(new Segment())
+
+// 相似度距离
+const similarThreshold = 1
+
 // 组件效果
 const textLoading = ref(false)
-
 // 页面坐标
 let globalMaxYCoord = -1
-
 // 缓存
 const resultCache = new Map()
-
 // 数据字典
-const proofreadDict = new Map()
+const proofDict = new Map()
+const proofSet = new Set()
 
 // 对象属性
 const pdfFile = ref()
@@ -128,24 +134,31 @@ const fileReplace = (files) => {
     resetData()
 }
 
-const loadProofreadDict = () => {
-    let lines = proofreadDictData.split('\n')
+const loadProofDict = () => {
+    let lines = proofDictData.split('\n')
     for (let line of lines) {
         line = line.trim()
         if (line == '' || line.startsWith('#')) {
             continue
         }
         let keyValue = line.split(':')
-        let errorWords = keyValue[1].split(',')
-        for (let errorWord of errorWords) {
-            proofreadDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+        if (keyValue.length == 2) {
+            let errorWords = keyValue[1].split(',')
+            for (let errorWord of errorWords) {
+                proofDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+            }
+        } else {
+            let words = line.split(',')
+            words.forEach(word => {
+                proofSet.add(word)
+            })
         }
     }
 }
 
 // PDF数据加载
 const loadPdfData = (uploadFile) => {
-    loadProofreadDict()
+    loadProofDict()
     loadPdfData0(uploadFile, fileObj1)
     loadPdfData0(uploadFile, fileObj2)
 }
@@ -334,8 +347,8 @@ const textCheck0 = async (fileObj, fileObjNext) => {
         }
     });
 
-    html1 = html1.replaceAll("\n", "<br/>")
-    html2 = html2.replaceAll("\n", "<br/>")
+    html1 = html1.replaceAll('\n', '<br/>')
+    html2 = html2.replaceAll('\n', '<br/>')
     fileObj1.diffHtml = html1
     fileObj2.diffHtml = html2
 }
@@ -446,10 +459,37 @@ const aiCheck = async (pageNumber, text) => {
 }
 
 const parseErrorWord = (content) => {
-    const keys = Array.from(proofreadDict.keys()).join('|')
+    // 精确校对
+    const keys = Array.from(proofDict.keys()).join('|')
     const regex = new RegExp(keys, 'g');
-    content = content.replace(regex, (matched) => proofreadDict.get(matched))
-    return content
+    content = content.replace(regex, (matched) => proofDict.get(matched))
+
+    // 近似校对
+    let result = ''
+    const words = segmentit.doSegment(content)
+    words.forEach(wordItem => {
+        let word = wordItem['w']
+        let correct = ''
+        proofSet.forEach(correctWord => {
+            let similarity = distance(word, correctWord)
+            if (similarity <= similarThreshold && word !== correctWord) {
+                // console.log(`word:${word}, correct:${correctWord}, similarity:${similarity}`)
+                correct = correctWord
+                return
+            }
+        })
+
+        if (correct) {
+            result += buildValueHtml(correct, 'similar')
+        } else {
+            if (result.endsWith('<span') && word == 'class') {
+                result += ' ' + word
+            } else {
+                result += word
+            }
+        }
+    })
+    return result
 }
 </script>
 

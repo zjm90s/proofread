@@ -13,6 +13,7 @@
         <el-menu-item index="/pdfDiff">PDF比对</el-menu-item>
         <el-menu-item index="/refDupCheck">参考文献去重</el-menu-item>
         <el-menu-item index="/pdfCheck" v-if="$globalState.vip">PDF校对</el-menu-item>
+        <el-menu-item index="/proofDict" v-if="$globalState.vip">校对词典</el-menu-item>
     </el-menu>
 
     <div class="setting" v-if="$globalState.vip" @click="openSetting">

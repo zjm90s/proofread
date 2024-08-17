@@ -47,8 +47,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import VuePdfEmbed from 'vue-pdf-embed'
-import 'vue-pdf-embed/dist/style/index.css'
-import 'vue-pdf-embed/dist/style/textLayer.css'
+import 'vue-pdf-embed/dist/styles/textLayer.css'
 
 // 对象属性
 const pdfFile = ref()

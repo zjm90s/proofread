@@ -79,8 +79,7 @@ import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as Diff from 'diff'
 import VuePdfEmbed from 'vue-pdf-embed'
-import 'vue-pdf-embed/dist/style/index.css'
-import 'vue-pdf-embed/dist/style/textLayer.css'
+import 'vue-pdf-embed/dist/styles/textLayer.css'
 
 // 开关
 // 是否保留句子换行（即句子到达最右端的换行）

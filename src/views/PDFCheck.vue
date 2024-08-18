@@ -7,6 +7,9 @@
                 </el-upload>
             </el-col>
             <el-col :span="12">
+                <el-upload ref="dictFile" :auto-upload="false" :limit="1" :on-change="loadDictData" :on-exceed="dictFileReplace">
+                    <el-button type="primary">上传词典</el-button>
+                </el-upload>
                 <el-text tag="b">移除页眉：</el-text>
                 <el-switch v-model="configure.removeHeader" @change="removeHeaderChange"/>
             </el-col>
@@ -60,6 +63,7 @@ import * as Diff from 'diff'
 import VuePdfEmbed from 'vue-pdf-embed'
 import 'vue-pdf-embed/dist/styles/textLayer.css'
 
+import EventBus from '@/EventBus.js'
 import {AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY} from '@/constants/constant'
 import proofDictData from '@/dict/proof_dict.txt?raw'
 
@@ -79,6 +83,8 @@ const resultCache = new Map()
 // 数据字典
 const proofDict = new Map()
 
+// 用户字典文件
+const dictFile = ref()
 // 对象属性
 const pdfFile = ref()
 let pdfDoc1 = null
@@ -118,31 +124,57 @@ const removeHeaderChange = () => {
     fileObj3.pdfText = parsePdfText(fileObj3.pdfTextItems)
 }
 
-// PDF文件替换
+// 文件替换
 const fileReplace = (files) => {
     pdfFile.value?.clearFiles()
     pdfFile.value?.handleStart(files[0])
     resetData()
 }
 
+const dictFileReplace = (files) => {
+    dictFile.value?.clearFiles()
+    dictFile.value?.handleStart(files[0])
+}
+
+// 用户字典加载
 const loadProofDict = () => {
-    let lines = proofDictData.split('\n')
+    loadProofDict0(proofDictData)
+}
+
+const loadProofDict0 = (dictData) => {
+    let lines = dictData.split('\n')
     for (let line of lines) {
         line = line.trim()
         if (line == '' || line.startsWith('#')) {
             continue
         }
         let keyValue = line.split(':')
+        if (keyValue.length != 2) {
+            ElMessage.error(`字典格式不合法，要求格式[正确词:错误词]，现在为[${keyValue}]`)
+            return false
+        }
         let errorWords = keyValue[1].split(',')
         for (let errorWord of errorWords) {
             proofDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+        }
+    }
+    return true
+}
+
+const loadDictData = (uploadFile) => {
+    let reader = new FileReader();
+    reader.readAsText(uploadFile.raw)
+    reader.onload = () => {
+        if (loadProofDict0(reader.result)) {
+            EventBus.emit('updateProofDict', reader.result)
+            resultCache.clear()
+            ElMessage.success('用户词典加载完成')
         }
     }
 }
 
 // PDF数据加载
 const loadPdfData = (uploadFile) => {
-    loadProofDict()
     loadPdfData0(uploadFile, fileObj1)
     loadPdfData0(uploadFile, fileObj2)
 }
@@ -443,11 +475,16 @@ const aiCheck = async (pageNumber, text) => {
 }
 
 const parseErrorWord = (content) => {
-    const keys = Array.from(proofDict.keys()).join('|')
-    const regex = new RegExp(keys, 'g');
-    content = content.replace(regex, (matched) => proofDict.get(matched))
+    if (proofDict.size > 0) {
+        const keys = Array.from(proofDict.keys()).join('|')
+        const regex = new RegExp(keys, 'g');
+        content = content.replace(regex, (matched) => proofDict.get(matched))
+    }
     return content
 }
+
+// 初始化
+loadProofDict()
 </script>
 
 <style scoped>

@@ -1,5 +1,5 @@
 <template>
-    <div class="pdf-check" v-if="$globalState.vip">
+    <div class="pdf-check" v-show="$globalState.vip">
         <el-row class="pdf-upload">
             <el-col :span="12">
                 <el-upload ref="pdfFile" :auto-upload="false" :limit="1" :on-change="loadPdfData" :on-exceed="fileReplace">

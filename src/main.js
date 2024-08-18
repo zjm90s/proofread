@@ -18,7 +18,7 @@ app.provide('$globalState', reactive({
     settingVisible: false
 }))
 
-// 通用异常处理器
+// 异常处理器
 app.config.errorHandler = (err, vm, info) => {
     ElMessage.error(err.message)
 }

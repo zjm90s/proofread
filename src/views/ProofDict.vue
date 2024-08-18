@@ -1,4 +1,11 @@
 <template>
+    <el-row class="dict-upload">
+        <el-col>
+            <el-upload ref="dictFile" :auto-upload="false" :limit="1" :on-change="loadDictData" :on-exceed="fileReplace">
+                <el-button type="primary">上传词典</el-button>
+            </el-upload>
+        </el-col>
+    </el-row>
     <el-row class="text-label">
         <el-col :span="12">
             <el-text tag="b">内置词典：</el-text>
@@ -22,14 +29,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { ElMessage } from "element-plus";
 import EventBus from '@/EventBus.js'
 import proofDictData from '@/dict/proof_dict.txt?raw'
+import { USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 
-let proofDict = ref('')
-let userProofDict = ref('')
+// 对象属性
+const dictFile = ref()
+const proofDict = ref('')
+const userProofDict = ref('')
 
 const parseDictData = (dictData) => {
+    if (!dictData) {
+        return ''
+    }
     let result = ''
     for (let line of dictData.split('\n')) {
         if (line.trim().startsWith('#')) {
@@ -40,23 +54,35 @@ const parseDictData = (dictData) => {
     return result
 }
 
-const updateProofDict = (dictData) => {
-    userProofDict.value = parseDictData(dictData)
+const loadDictData = (uploadFile) => {
+    let reader = new FileReader();
+    reader.readAsText(uploadFile.raw)
+    reader.onload = () => {
+        userProofDict.value = parseDictData(reader.result)
+        localStorage[USER_PROOF_DICT_KEY] = reader.result
+        EventBus.emit('loadUserProofDict', reader.result)
+        ElMessage.success('用户词典加载完成')
+    }
+}
+
+const fileReplace = (files) => {
+    dictFile.value?.clearFiles()
+    dictFile.value?.handleStart(files[0])
 }
 
 // 初始化
 proofDict.value = parseDictData(proofDictData)
-onMounted(() => {
-    EventBus.on('updateProofDict', updateProofDict)
-})
+userProofDict.value = parseDictData(localStorage[USER_PROOF_DICT_KEY])
 </script>
 
 <style scoped>
 .text-label {
+    margin-top: 30px;
     margin-bottom: 10px;
 }
-.text-dict {
-
+.dict-upload > .el-col {
+    padding: 10px;
+    border: 1px solid var(--el-menu-border-color);
 }
 .text-dict > .el-col {
     padding: 10px;

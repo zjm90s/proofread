@@ -7,9 +7,6 @@
                 </el-upload>
             </el-col>
             <el-col :span="12">
-                <el-upload ref="dictFile" :auto-upload="false" :limit="1" :on-change="loadDictData" :on-exceed="dictFileReplace">
-                    <el-button type="primary">上传词典</el-button>
-                </el-upload>
                 <el-text tag="b">移除页眉：</el-text>
                 <el-switch v-model="configure.removeHeader" @change="removeHeaderChange"/>
             </el-col>
@@ -55,7 +52,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, inject } from 'vue'
+import { ref, reactive, inject, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import Cookies from 'js-cookie'
 import OpenAI from 'openai'
@@ -64,7 +61,7 @@ import VuePdfEmbed from 'vue-pdf-embed'
 import 'vue-pdf-embed/dist/styles/textLayer.css'
 
 import EventBus from '@/EventBus.js'
-import {AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY} from '@/constants/constant'
+import { AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 import proofDictData from '@/dict/proof_dict.txt?raw'
 
 const $globalState = inject('$globalState')
@@ -131,17 +128,11 @@ const fileReplace = (files) => {
     resetData()
 }
 
-const dictFileReplace = (files) => {
-    dictFile.value?.clearFiles()
-    dictFile.value?.handleStart(files[0])
-}
-
 // 用户字典加载
-const loadProofDict = () => {
-    loadProofDict0(proofDictData)
-}
-
-const loadProofDict0 = (dictData) => {
+const loadProofDict = (dictData) => {
+    if (!dictData) {
+        return
+    }
     let lines = dictData.split('\n')
     for (let line of lines) {
         line = line.trim()
@@ -158,19 +149,13 @@ const loadProofDict0 = (dictData) => {
             proofDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
         }
     }
-    return true
 }
 
-const loadDictData = (uploadFile) => {
-    let reader = new FileReader();
-    reader.readAsText(uploadFile.raw)
-    reader.onload = () => {
-        if (loadProofDict0(reader.result)) {
-            EventBus.emit('updateProofDict', reader.result)
-            resultCache.clear()
-            ElMessage.success('用户词典加载完成')
-        }
-    }
+const loadUserProofDict = (dictData) => {
+    proofDict.clear()
+    loadProofDict(proofDictData)
+    loadProofDict(dictData)
+    resultCache.clear()
 }
 
 // PDF数据加载
@@ -484,7 +469,11 @@ const parseErrorWord = (content) => {
 }
 
 // 初始化
-loadProofDict()
+loadProofDict(proofDictData)
+loadProofDict(localStorage[USER_PROOF_DICT_KEY])
+onMounted(() => {
+    EventBus.on('loadUserProofDict', loadUserProofDict)
+})
 </script>
 
 <style scoped>

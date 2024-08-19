@@ -88,6 +88,10 @@ userProofDict.value = parseDictData(localStorage[USER_PROOF_DICT_KEY])
     padding: 10px;
     border: 1px solid var(--el-menu-border-color);
 }
+.text-dict {
+    white-space: pre-wrap;
+    word-spacing: 1em;
+}
 .text-dict > .el-col {
     padding: 10px;
     border: 1px solid var(--el-menu-border-color);

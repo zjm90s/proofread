@@ -63,6 +63,8 @@ import 'vue-pdf-embed/dist/styles/textLayer.css'
 import EventBus from '@/EventBus.js'
 import { AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 import proofDictData from '@/dict/proof_dict.txt?raw'
+import xingjinDictData from '@/dict/形近字语料库.txt?raw'
+import yinjinDictData from '@/dict/音近字语料库.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -71,17 +73,36 @@ const configure = reactive({
     removeHeader: true
 })
 
+// 开关
+const enableAiCheck = true
+const enableCache = true
+const fixCompatibilityIdeographs = false
+
 // 组件效果
 const textLoading = ref(false)
 // 页面坐标
 let globalMaxYCoord = -1
 // 缓存
 const resultCache = new Map()
+
 // 数据字典
+// 易错词词典（错误词: 正确词）
 const proofDict = new Map()
+// 正确词集合（正确词）
+const proofSet = new Set()
+// 形近/音近字典（原字: 形近/音近字）
+const similarDict = new Map()
+// 兼容表意字典（错误: 正确）
+const ciDict = new Map([
+    ['⽣', '生'], ['⼩', '小'], ['⽟', '玉'], ['⼤', '大'], ['⽉', '月'],
+    ['⽜', '牛'], ['⾼', '高'], ['⼉', '儿'], ['⼆', '二'], ['⾦', '金'],
+    ['⽂', '文'], ['⼭', '山'], ['⾹', '香'], ['⾉', '艮'], ['⽴', '立'],
+    ['⼋', '八'], ['⽥', '田'], ['⽕', '火'], ['⼦', '子'], ['⽤', '用']
+])
 
 // 用户字典文件
 const dictFile = ref()
+
 // 对象属性
 const pdfFile = ref()
 let pdfDoc1 = null
@@ -139,18 +160,44 @@ const loadProofDict = (dictData) => {
         if (line == '' || line.startsWith('#')) {
             continue
         }
-        let keyValue = line.split(':')
-        if (keyValue.length != 2) {
-            ElMessage.error(`字典格式不合法，要求格式[正确词:错误词]，现在为[${keyValue}]`)
-            return false
-        }
-        let errorWords = keyValue[1].split(',')
-        for (let errorWord of errorWords) {
-            proofDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+        let keyValue = line.split(/\s+/)
+        if (keyValue.length == 2) {
+            let errorWords = keyValue[1].split(',')
+            for (let errorWord of errorWords) {
+                proofDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+            }
+        } else {
+            proofSet.add(line)
         }
     }
 }
 
+// 形近/音近字字典加载
+const loadSimilarDict = (dictData) => {
+    if (!dictData) {
+        return
+    }
+    let lines = dictData.split('\n')
+    for (let line of lines) {
+        line = line.trim()
+        if (line == '' || line.startsWith('#')) {
+            continue
+        }
+        let keyValue = line.split(/\s+/)
+        if (keyValue.length == 1) {
+            continue
+        }
+        if (similarDict.has(keyValue[0])) {
+            let similarItems = similarDict.get(keyValue[0]) + keyValue[1]
+            similarItems = Array.from(new Set(similarItems)).join('')
+            similarDict.set(keyValue[0], similarItems)
+        } else {
+            similarDict.set(keyValue[0], keyValue[1])
+        }
+    }
+}
+
+// 用户词典加载
 const loadUserProofDict = (dictData) => {
     proofDict.clear()
     loadProofDict(proofDictData)
@@ -198,7 +245,7 @@ const loadPdfText2 = (pdfDoc) => {
 }
 const loadPdfText = (pdfDoc, fileObj, pageNumber) => {
     if (fileObj.pageSize == 0) {
-        fileObj.pageNumber = pageNumber
+        fileObj.pageNumber = pageNumber > pdfDoc.numPages ? pdfDoc.numPages : pageNumber
         fileObj.pageSize = pdfDoc.numPages
     }
 
@@ -217,6 +264,7 @@ const loadPdfText = (pdfDoc, fileObj, pageNumber) => {
     })
 }
 
+// PDF内容解析
 const parsePdfText = (textContent) => {
     // 最右端坐标
     let maxXCoord = 0
@@ -301,7 +349,7 @@ const textCheck = async () => {
     }
 
     // 缓存第二页
-    if (fileObj2.pageNumber == fileObj1.pageNumber + 1) {
+    if (enableCache && fileObj2.pageNumber == fileObj1.pageNumber + 1) {
         let fullText = toSBC(fileObj2.pdfText)
         if (fullText.includes('。') && !fullText.endsWith('。') && fileObj3.pageNumber == fileObj2.pageNumber + 1) {
             let nextPdfText = toSBC(fileObj3.pdfText)
@@ -420,7 +468,12 @@ const aiTextTrim = (str) => {
     return newStr
 }
 
+// AI校对
 const aiCheck = async (pageNumber, text) => {
+    if (!enableAiCheck) {
+        return checkErrorWord(text)
+    }
+
     if (text == null || text.trim() == '') {
         return ''
     }
@@ -455,22 +508,84 @@ const aiCheck = async (pageNumber, text) => {
         ]
     })
     let content = completion.choices[0].message.content
-    content = parseErrorWord(content)
+    content = checkErrorWord(content)
     return content
 }
 
-const parseErrorWord = (content) => {
+// 基于字典校对
+const checkErrorWord = (content) => {
+    // 兼容表意文字替换
+    if (fixCompatibilityIdeographs && ciDict.size > 0) {
+        const keys = Array.from(ciDict.keys()).join('|')
+        const regex = new RegExp(keys, 'g');
+        content = content.replace(regex, (matched) => ciDict.get(matched))
+    }
+    // 使用易错词词典校对
     if (proofDict.size > 0) {
         const keys = Array.from(proofDict.keys()).join('|')
         const regex = new RegExp(keys, 'g');
         content = content.replace(regex, (matched) => proofDict.get(matched))
     }
+
+    // 根据正确词词典获取所有相近字
+    let allSimilarChars = new Set()
+    for (let word of proofSet) {
+        for (let char of word.split('')) {
+            allSimilarChars.add(char)
+            let similarChars = similarDict.get(char)
+            if (!similarChars) {
+                continue
+            }
+            for (let similarChar of similarChars.split('')) {
+                allSimilarChars.add(similarChar)
+            }
+        }
+    }
+
+    // 获取文中实际出现的相近字
+    let realSimilarChars = new Set()
+    for (let char of allSimilarChars) {
+        if (content.includes(char)) {
+            realSimilarChars.add(char)
+        }
+    }
+
+    // 生成校对词典
+    let pageProofDict = new Map()
+    for (let word of proofSet) {
+        buildPageProofDict(pageProofDict, realSimilarChars, word, word, '')
+    }
+
+    // 修正错误词
+    if (pageProofDict.size > 0) {
+        const keys = Array.from(pageProofDict.keys()).join('|')
+        const regex = new RegExp(keys, 'g');
+        content = content.replace(regex, (matched) => pageProofDict.get(matched))
+    }
     return content
+}
+
+// 构建页面级校对词典
+const buildPageProofDict = (pageProofDict, realSimilarChars, word, leftWord, prefix) => {
+    let similarChars = similarDict.get(leftWord[0])
+    similarChars = similarChars ? leftWord[0] + similarChars : leftWord[0]
+    for (let similarChar of similarChars.split('')) {
+        if (!realSimilarChars.has(similarChar)) {
+            continue
+        }
+        if (leftWord.length > 1) {
+            buildPageProofDict(pageProofDict, realSimilarChars, word, leftWord.substring(1), prefix + similarChar)
+        } else {
+            pageProofDict.set(prefix + similarChar, buildValueHtml(word, 'error'))
+        }
+    }
 }
 
 // 初始化
 loadProofDict(proofDictData)
 loadProofDict(localStorage[USER_PROOF_DICT_KEY])
+loadSimilarDict(xingjinDictData)
+loadSimilarDict(yinjinDictData)
 onMounted(() => {
     EventBus.on('loadUserProofDict', loadUserProofDict)
 })

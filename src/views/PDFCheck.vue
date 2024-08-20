@@ -62,9 +62,12 @@ import 'vue-pdf-embed/dist/styles/textLayer.css'
 
 import EventBus from '@/EventBus.js'
 import { AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from '@/constants/constant.js'
-import proofDictData from '@/dict/proof_dict.txt?raw'
+
 import xingjinDictData from '@/dict/形近字语料库.txt?raw'
 import yinjinDictData from '@/dict/音近字语料库.txt?raw'
+import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
+import sxcDictData from '@/dict/首选词－现代汉语词典.txt?raw'
+import yxchDictData from '@/dict/医学词汇大全.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -149,50 +152,62 @@ const fileReplace = (files) => {
     resetData()
 }
 
-// 用户字典加载
-const loadProofDict = (dictData) => {
-    if (!dictData) {
+// 校对字典加载
+const loadAllProofDict = () => {
+    loadProofDict(yxscDictData, sxcDictData, yxchDictData)
+}
+
+const loadProofDict = (...dictDatas) => {
+    if (!dictDatas) {
         return
     }
-    let lines = dictData.split('\n')
-    for (let line of lines) {
-        line = line.trim()
-        if (line == '' || line.startsWith('#')) {
+    for (let dictData of dictDatas) {
+        if (!dictData) {
+            console.warn('当前字典为空，未加载')
             continue
         }
-        let keyValue = line.split(/\s+/)
-        if (keyValue.length == 2) {
-            let errorWords = keyValue[1].split(',')
-            for (let errorWord of errorWords) {
-                proofDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+        let lines = dictData.split('\n')
+        for (let line of lines) {
+            line = line.trim()
+            if (line == '' || line.startsWith('#')) {
+                continue
             }
-        } else {
-            proofSet.add(line)
+            let keyValue = line.split(/\s+/)
+            if (keyValue.length == 2) {
+                let errorWords = keyValue[1].split(',')
+                for (let errorWord of errorWords) {
+                    proofDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+                }
+            } else {
+                proofSet.add(line)
+            }
         }
     }
 }
 
 // 形近/音近字字典加载
-const loadSimilarDict = (dictData) => {
-    if (!dictData) {
+const loadSimilarDict = (...dictDatas) => {
+    if (!dictDatas) {
         return
     }
-    let lines = dictData.split('\n')
-    for (let line of lines) {
-        line = line.trim()
-        if (line == '' || line.startsWith('#')) {
-            continue
-        }
-        let keyValue = line.split(/\s+/)
-        if (keyValue.length == 1) {
-            continue
-        }
-        if (similarDict.has(keyValue[0])) {
-            let similarItems = similarDict.get(keyValue[0]) + keyValue[1]
-            similarItems = Array.from(new Set(similarItems)).join('')
-            similarDict.set(keyValue[0], similarItems)
-        } else {
-            similarDict.set(keyValue[0], keyValue[1])
+    for (let dictData of dictDatas) {
+        let lines = dictData.split('\n')
+        for (let line of lines) {
+            line = line.trim()
+            if (line == '' || line.startsWith('#')) {
+                continue
+            }
+            let keyValue = line.split(/\s+/)
+            if (keyValue.length == 1) {
+                continue
+            }
+            if (similarDict.has(keyValue[0])) {
+                let similarItems = similarDict.get(keyValue[0]) + keyValue[1]
+                similarItems = Array.from(new Set(similarItems)).join('')
+                similarDict.set(keyValue[0], similarItems)
+            } else {
+                similarDict.set(keyValue[0], keyValue[1])
+            }
         }
     }
 }
@@ -200,7 +215,7 @@ const loadSimilarDict = (dictData) => {
 // 用户词典加载
 const loadUserProofDict = (dictData) => {
     proofDict.clear()
-    loadProofDict(proofDictData)
+    loadAllProofDict()
     loadProofDict(dictData)
     resultCache.clear()
 }
@@ -576,16 +591,18 @@ const buildPageProofDict = (pageProofDict, realSimilarChars, word, leftWord, pre
         if (leftWord.length > 1) {
             buildPageProofDict(pageProofDict, realSimilarChars, word, leftWord.substring(1), prefix + similarChar)
         } else {
-            pageProofDict.set(prefix + similarChar, buildValueHtml(word, 'error'))
+            let similarWord = prefix + similarChar
+            if (similarWord != word) {
+                pageProofDict.set(prefix + similarChar, buildValueHtml(word, 'error'))
+            }
         }
     }
 }
 
 // 初始化
-loadProofDict(proofDictData)
+loadAllProofDict()
 loadProofDict(localStorage[USER_PROOF_DICT_KEY])
-loadSimilarDict(xingjinDictData)
-loadSimilarDict(yinjinDictData)
+loadSimilarDict(xingjinDictData, yinjinDictData)
 onMounted(() => {
     EventBus.on('loadUserProofDict', loadUserProofDict)
 })

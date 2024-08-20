@@ -34,8 +34,11 @@
 import { ref, inject } from 'vue'
 import { ElMessage } from "element-plus";
 import EventBus from '@/EventBus.js'
-import proofDictData from '@/dict/proof_dict.txt?raw'
 import { USER_PROOF_DICT_KEY } from '@/constants/constant.js'
+
+import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
+import sxcDictData from '@/dict/首选词－现代汉语词典.txt?raw'
+import yxchDictData from '@/dict/医学词汇大全.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -44,16 +47,23 @@ const dictFile = ref()
 const proofDict = ref('')
 const userProofDict = ref('')
 
-const parseDictData = (dictData) => {
-    if (!dictData) {
+const parseDictData = (...dictDatas) => {
+    if (!dictDatas) {
         return ''
     }
     let result = ''
-    for (let line of dictData.split('\n')) {
-        if (line.trim().startsWith('#')) {
-            line = `<b>${line}</b>`
+    for (let dictData of dictDatas) {
+        if (!dictData) {
+            console.warn('当前字典为空，未解析')
+            continue
         }
-        result += line + '<br/>'
+        for (let line of dictData.split('\n')) {
+            if (line.trim().startsWith('#')) {
+                line = `<b>${line}</b>`
+            }
+            result += line + '<br/>'
+        }
+        result += '<br/><br/>'
     }
     return result
 }
@@ -75,7 +85,7 @@ const fileReplace = (files) => {
 }
 
 // 初始化
-proofDict.value = parseDictData(proofDictData)
+proofDict.value = parseDictData(yxscDictData, sxcDictData, yxchDictData)
 userProofDict.value = parseDictData(localStorage[USER_PROOF_DICT_KEY])
 </script>
 

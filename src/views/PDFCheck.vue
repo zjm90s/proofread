@@ -95,6 +95,8 @@ const proofDict = new Map()
 const proofSet = new Set()
 // 形近/音近字典（原字: 形近/音近字）
 const similarDict = new Map()
+// 正确词集合-相近字
+const similarChars = new Set()
 // 兼容表意字典（错误: 正确）
 const ciDict = new Map([
     ['⽣', '生'], ['⼩', '小'], ['⽟', '玉'], ['⼤', '大'], ['⽉', '月'],
@@ -153,8 +155,12 @@ const fileReplace = (files) => {
 }
 
 // 校对字典加载
-const loadAllProofDict = () => {
+const loadAllProofDict = (userDictData) => {
     loadProofDict(yxscDictData, sxcDictData, yxchDictData)
+    if (userDictData) {
+        loadProofDict(userDictData)
+    }
+    loadSimilarChars()
 }
 
 const loadProofDict = (...dictDatas) => {
@@ -162,10 +168,6 @@ const loadProofDict = (...dictDatas) => {
         return
     }
     for (let dictData of dictDatas) {
-        if (!dictData) {
-            console.warn('当前字典为空，未加载')
-            continue
-        }
         let lines = dictData.split('\n')
         for (let line of lines) {
             line = line.trim()
@@ -180,6 +182,22 @@ const loadProofDict = (...dictDatas) => {
                 }
             } else {
                 proofSet.add(line)
+            }
+        }
+    }
+}
+
+// 根据正确词集合加载相近字
+const loadSimilarChars = () => {
+    for (let word of proofSet) {
+        for (let char of word.split('')) {
+            similarChars.add(char)
+            let simChars = similarDict.get(char)
+            if (!simChars) {
+                continue
+            }
+            for (let similarChar of simChars.split('')) {
+                similarChars.add(similarChar)
             }
         }
     }
@@ -215,8 +233,7 @@ const loadSimilarDict = (...dictDatas) => {
 // 用户词典加载
 const loadUserProofDict = (dictData) => {
     proofDict.clear()
-    loadAllProofDict()
-    loadProofDict(dictData)
+    loadAllProofDict(dictData)
     resultCache.clear()
 }
 
@@ -486,7 +503,7 @@ const aiTextTrim = (str) => {
 // AI校对
 const aiCheck = async (pageNumber, text) => {
     if (!enableAiCheck) {
-        return checkErrorWord(text)
+        return checkWithDict(text)
     }
 
     if (text == null || text.trim() == '') {
@@ -523,12 +540,12 @@ const aiCheck = async (pageNumber, text) => {
         ]
     })
     let content = completion.choices[0].message.content
-    content = checkErrorWord(content)
+    content = checkWithDict(content)
     return content
 }
 
 // 基于字典校对
-const checkErrorWord = (content) => {
+const checkWithDict = (content) => {
     // 兼容表意文字替换
     if (fixCompatibilityIdeographs && ciDict.size > 0) {
         const keys = Array.from(ciDict.keys()).join('|')
@@ -542,42 +559,40 @@ const checkErrorWord = (content) => {
         content = content.replace(regex, (matched) => proofDict.get(matched))
     }
 
-    // 根据正确词词典获取所有相近字
-    let allSimilarChars = new Set()
-    for (let word of proofSet) {
-        for (let char of word.split('')) {
-            allSimilarChars.add(char)
-            let similarChars = similarDict.get(char)
-            if (!similarChars) {
-                continue
-            }
-            for (let similarChar of similarChars.split('')) {
-                allSimilarChars.add(similarChar)
+    // 使用正确词词库校对
+    // 文本拆分以降低时间复杂度
+    let newContent = ''
+    let sentences = content.split(/(?<=[。])/)
+    let sentenceMerge = ''
+    for (const [i, sentence] of sentences.entries()) {
+        sentenceMerge += sentence
+        if (sentenceMerge.length < 100 && i + 1 < sentences.length) {
+            continue
+        }
+        // 获取文中实际出现的相近字
+        let realSimilarChars = new Set()
+        for (let char of similarChars) {
+            if (sentenceMerge.includes(char)) {
+                realSimilarChars.add(char)
             }
         }
-    }
 
-    // 获取文中实际出现的相近字
-    let realSimilarChars = new Set()
-    for (let char of allSimilarChars) {
-        if (content.includes(char)) {
-            realSimilarChars.add(char)
+        // 生成校对词典
+        let pageProofDict = new Map()
+        for (let word of proofSet) {
+            buildPageProofDict(pageProofDict, realSimilarChars, word, word, '')
         }
-    }
 
-    // 生成校对词典
-    let pageProofDict = new Map()
-    for (let word of proofSet) {
-        buildPageProofDict(pageProofDict, realSimilarChars, word, word, '')
+        // 修正错误词
+        if (pageProofDict.size > 0) {
+            const keys = Array.from(pageProofDict.keys()).join('|')
+            const regex = new RegExp(keys, 'g');
+            sentenceMerge = sentenceMerge.replace(regex, (matched) => pageProofDict.get(matched))
+        }
+        newContent += sentenceMerge
+        sentenceMerge = ''
     }
-
-    // 修正错误词
-    if (pageProofDict.size > 0) {
-        const keys = Array.from(pageProofDict.keys()).join('|')
-        const regex = new RegExp(keys, 'g');
-        content = content.replace(regex, (matched) => pageProofDict.get(matched))
-    }
-    return content
+    return newContent
 }
 
 // 构建页面级校对词典
@@ -593,15 +608,14 @@ const buildPageProofDict = (pageProofDict, realSimilarChars, word, leftWord, pre
         } else {
             let similarWord = prefix + similarChar
             if (similarWord != word) {
-                pageProofDict.set(prefix + similarChar, buildValueHtml(word, 'error'))
+                pageProofDict.set(similarWord, buildValueHtml(word, 'error'))
             }
         }
     }
 }
 
 // 初始化
-loadAllProofDict()
-loadProofDict(localStorage[USER_PROOF_DICT_KEY])
+loadAllProofDict(localStorage[USER_PROOF_DICT_KEY])
 loadSimilarDict(xingjinDictData, yinjinDictData)
 onMounted(() => {
     EventBus.on('loadUserProofDict', loadUserProofDict)

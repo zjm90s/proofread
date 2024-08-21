@@ -63,10 +63,10 @@ import 'vue-pdf-embed/dist/styles/textLayer.css'
 import EventBus from '@/EventBus.js'
 import { AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 
-import xingjinDictData from '@/dict/形近字语料库.txt?raw'
-import yinjinDictData from '@/dict/音近字语料库.txt?raw'
+import xingjinDictData from '@/dict/[近似语料库]-形近字.txt?raw'
+import yinjinDictData from '@/dict/[近似语料库]-音近字.txt?raw'
 import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
-import sxcDictData from '@/dict/首选词－现代汉语词典.txt?raw'
+import sxcDictData from '@/dict/现代汉语词典-首选词.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -155,7 +155,10 @@ const fileReplace = (files) => {
 
 // 校对字典加载
 const loadAllProofDict = (userDictData) => {
-    loadProofDict(yxscDictData, sxcDictData)
+    loadProofDict(
+        yxscDictData,
+        sxcDictData
+    )
     if (userDictData) {
         loadProofDict(userDictData)
     }

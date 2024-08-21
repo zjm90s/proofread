@@ -37,7 +37,7 @@ import EventBus from '@/EventBus.js'
 import { USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 
 import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
-import sxcDictData from '@/dict/首选词－现代汉语词典.txt?raw'
+import sxcDictData from '@/dict/现代汉语词典-首选词.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -51,6 +51,7 @@ const parseDictData = (...dictDatas) => {
         return ''
     }
     let result = ''
+    let id = 0
     for (let dictData of dictDatas) {
         if (!dictData) {
             console.warn('当前字典为空，未解析')
@@ -60,9 +61,10 @@ const parseDictData = (...dictDatas) => {
             if (line.trim().startsWith('#')) {
                 line = `<b>${line}</b>`
             }
-            result += line + '<br/>'
+            result += `<span class="auto-incr-id">${++id}</span>${line}<br/>`
         }
-        result += '<br/><br/>'
+        result += `<span class="auto-incr-id">${++id}</span><br/>`
+        result += `<span class="auto-incr-id">${++id}</span><br/>`
     }
     return result
 }
@@ -84,7 +86,10 @@ const fileReplace = (files) => {
 }
 
 // 初始化
-proofDict.value = parseDictData(yxscDictData, sxcDictData)
+proofDict.value = parseDictData(
+    yxscDictData,
+    sxcDictData
+)
 userProofDict.value = parseDictData(localStorage[USER_PROOF_DICT_KEY])
 </script>
 

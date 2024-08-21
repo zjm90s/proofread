@@ -43,4 +43,15 @@ body {
     border-radius: .2em;
     background-color: #5df2ef;
 }
+.auto-incr-id {
+    display: inline-block;
+    text-align: right;
+    width: 60px;
+    padding-left: 2px;
+    padding-right: 2px;
+    margin-right: 5px;
+    color: #fff;
+    background-color: #8c8c8c;
+    user-select: none;
+}
 </style>

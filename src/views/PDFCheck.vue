@@ -67,7 +67,6 @@ import xingjinDictData from '@/dict/形近字语料库.txt?raw'
 import yinjinDictData from '@/dict/音近字语料库.txt?raw'
 import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
 import sxcDictData from '@/dict/首选词－现代汉语词典.txt?raw'
-import yxchDictData from '@/dict/医学词汇大全.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -156,7 +155,7 @@ const fileReplace = (files) => {
 
 // 校对字典加载
 const loadAllProofDict = (userDictData) => {
-    loadProofDict(yxscDictData, sxcDictData, yxchDictData)
+    loadProofDict(yxscDictData, sxcDictData)
     if (userDictData) {
         loadProofDict(userDictData)
     }

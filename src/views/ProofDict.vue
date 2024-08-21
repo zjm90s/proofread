@@ -38,7 +38,6 @@ import { USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 
 import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
 import sxcDictData from '@/dict/首选词－现代汉语词典.txt?raw'
-import yxchDictData from '@/dict/医学词汇大全.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -85,7 +84,7 @@ const fileReplace = (files) => {
 }
 
 // 初始化
-proofDict.value = parseDictData(yxscDictData, sxcDictData, yxchDictData)
+proofDict.value = parseDictData(yxscDictData, sxcDictData)
 userProofDict.value = parseDictData(localStorage[USER_PROOF_DICT_KEY])
 </script>
 

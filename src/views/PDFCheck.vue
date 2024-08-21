@@ -173,7 +173,7 @@ const loadProofDict = (...dictDatas) => {
         let lines = dictData.split('\n')
         for (let line of lines) {
             line = line.trim()
-            if (line == '' || line.startsWith('#')) {
+            if (line == '' || line.startsWith('#') || line.startsWith('//')) {
                 continue
             }
             let keyValue = line.split(/\s+/)
@@ -214,7 +214,7 @@ const loadSimilarDict = (...dictDatas) => {
         let lines = dictData.split('\n')
         for (let line of lines) {
             line = line.trim()
-            if (line == '' || line.startsWith('#')) {
+            if (line == '' || line.startsWith('#') || line.startsWith('//')) {
                 continue
             }
             let keyValue = line.split(/\s+/)

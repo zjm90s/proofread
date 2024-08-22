@@ -36,8 +36,8 @@ import { ElMessage } from "element-plus";
 import EventBus from '@/EventBus.js'
 import { USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 
-import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
 import sxcDictData from '@/dict/现代汉语词典-首选词.txt?raw'
+import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -87,8 +87,8 @@ const fileReplace = (files) => {
 
 // 初始化
 proofDict.value = parseDictData(
-    yxscDictData,
-    sxcDictData
+    sxcDictData,
+    yxscDictData
 )
 userProofDict.value = parseDictData(localStorage[USER_PROOF_DICT_KEY])
 </script>

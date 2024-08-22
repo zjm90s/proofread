@@ -57,6 +57,7 @@ import { ElMessage } from 'element-plus'
 import Cookies from 'js-cookie'
 import OpenAI from 'openai'
 import * as Diff from 'diff'
+import { Segment, useDefault } from 'segmentit'
 import VuePdfEmbed from 'vue-pdf-embed'
 import 'vue-pdf-embed/dist/styles/textLayer.css'
 
@@ -65,10 +66,14 @@ import { AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from 
 
 import xingjinDictData from '@/dict/[近似语料库]-形近字.txt?raw'
 import yinjinDictData from '@/dict/[近似语料库]-音近字.txt?raw'
-import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
 import sxcDictData from '@/dict/现代汉语词典-首选词.txt?raw'
+import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
+import qhyxDictData from '@/dict/清华开放词库-医学.txt?raw'
 
 const $globalState = inject('$globalState')
+const segmentit = useDefault(new Segment())
+const segmentDict = JSON.parse(JSON.stringify(segmentit.DICT['TABLE']))
+const loadedCutDict = new Set()
 
 // 页面配置
 const configure = reactive({
@@ -79,6 +84,7 @@ const configure = reactive({
 const enableAiCheck = true
 const enableCache = true
 const fixCompatibilityIdeographs = false
+const similarCheckVersion = 1
 
 // 组件效果
 const textLoading = ref(false)
@@ -89,9 +95,9 @@ const resultCache = new Map()
 
 // 数据字典
 // 易错词词典（错误词: 正确词）
-const proofDict = new Map()
-// 正确词集合（正确词）
-const proofSet = new Set()
+const errorDict = new Map()
+// 正确词词典（正确词: 词频）
+const correctDict = new Map()
 // 形近/音近字典（原字: 形近/音近字）
 const similarDict = new Map()
 // 正确词集合-相近字
@@ -156,8 +162,8 @@ const fileReplace = (files) => {
 // 校对字典加载
 const loadAllProofDict = (userDictData) => {
     loadProofDict(
-        yxscDictData,
-        sxcDictData
+        sxcDictData,
+        yxscDictData
     )
     if (userDictData) {
         loadProofDict(userDictData)
@@ -178,12 +184,17 @@ const loadProofDict = (...dictDatas) => {
             }
             let keyValue = line.split(/\s+/)
             if (keyValue.length == 2) {
-                let errorWords = keyValue[1].split(',')
-                for (let errorWord of errorWords) {
-                    proofDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+                let value = keyValue[1]
+                if (isNaN(value)) {
+                    let errorWords = value.split(',')
+                    for (let errorWord of errorWords) {
+                        errorDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+                    }
+                } else {
+                    correctDict.set(keyValue[0], value)
                 }
             } else {
-                proofSet.add(line)
+                correctDict.set(line, 1000)
             }
         }
     }
@@ -191,7 +202,7 @@ const loadProofDict = (...dictDatas) => {
 
 // 根据正确词集合加载相近字
 const loadSimilarChars = () => {
-    for (let word of proofSet) {
+    for (const [word, weight] of correctDict.entries()) {
         for (let char of word.split('')) {
             similarChars.add(char)
             let simChars = similarDict.get(char)
@@ -234,7 +245,7 @@ const loadSimilarDict = (...dictDatas) => {
 
 // 用户词典加载
 const loadUserProofDict = (dictData) => {
-    proofDict.clear()
+    errorDict.clear()
     loadAllProofDict(dictData)
     resultCache.clear()
 }
@@ -415,20 +426,30 @@ const textCheck0 = async (fileObj, fileObjNext) => {
 
     let html1 = ''
     let html2 = ''
-    diffItems.forEach((part) => {
+    let inSpan = false
+    for (let part of diffItems) {
+        let value = part.value
+        if (value.includes('<span ')) {
+            inSpan = true
+        }
+
         if (part.added) {
-            if (part.value.includes('<span ') || part.value.includes('</span>')) {
-                html2 = html2 + part.value
+            if (inSpan) {
+                html2 = html2 + value
             } else {
-                html2 = html2 + buildValueHtml(part.value, 'add')
+                html2 = html2 + buildValueHtml(value, 'add')
             }
         } else if (part.removed) {
-            html1 = html1 + buildValueHtml(part.value, 'remove')
+            html1 = html1 + buildValueHtml(value, 'remove')
         } else {
-            html1 = html1 + buildValueHtml(part.value)
-            html2 = html2 + buildValueHtml(part.value)
+            html1 = html1 + buildValueHtml(value)
+            html2 = html2 + buildValueHtml(value)
         }
-    });
+
+        if (value.includes('</span>')) {
+            inSpan = false
+        }
+    }
 
     html1 = html1.replaceAll('\n', '<br/>')
     html2 = html2.replaceAll('\n', '<br/>')
@@ -555,10 +576,10 @@ const checkWithDict = (content) => {
         content = content.replace(regex, (matched) => ciDict.get(matched))
     }
     // 使用易错词词典校对
-    if (proofDict.size > 0) {
-        const keys = Array.from(proofDict.keys()).join('|')
+    if (errorDict.size > 0) {
+        const keys = Array.from(errorDict.keys()).join('|')
         const regex = new RegExp(keys, 'g');
-        content = content.replace(regex, (matched) => proofDict.get(matched))
+        content = content.replace(regex, (matched) => errorDict.get(matched))
     }
 
     // 使用正确词词库校对
@@ -581,24 +602,57 @@ const checkWithDict = (content) => {
 
         // 生成校对词典
         let pageProofDict = new Map()
-        for (let word of proofSet) {
-            buildPageProofDict(pageProofDict, realSimilarChars, word, word, '')
+        for (const [word, weight] of correctDict.entries()) {
+            buildPageProofDict(pageProofDict, realSimilarChars, word, word, '', weight)
         }
 
-        // 修正错误词
-        if (pageProofDict.size > 0) {
-            const keys = Array.from(pageProofDict.keys()).join('|')
-            const regex = new RegExp(keys, 'g');
-            sentenceMerge = sentenceMerge.replace(regex, (matched) => pageProofDict.get(matched))
+        if (similarCheckVersion == 1) { // 基于正则
+            // 修正错误词
+            if (pageProofDict.size > 0) {
+                const keys = Array.from(pageProofDict.keys()).join('|')
+                const regex = new RegExp(keys, 'g');
+                sentenceMerge = sentenceMerge.replace(regex, (matched) => pageProofDict.get(matched)[0])
+            }
+            newContent += sentenceMerge
+            sentenceMerge = ''
+        } else if (similarCheckVersion == 2) { // 基于分词
+            // 生成分词词典
+            let pageCutDict = ''
+            for (const [errorWord, correctItem] of pageProofDict.entries()) {
+                if (loadedCutDict.has(errorWord)) {
+                    continue
+                }
+                pageCutDict += `${errorWord}|0x100000|${correctItem[1]}\n`
+                loadedCutDict.add(errorWord)
+            }
+            if (pageCutDict) {
+                segmentit.loadDict(pageCutDict)
+            }
+
+            // 修正错误词
+            let sentenceResult = ''
+            const words = segmentit.doSegment(sentenceMerge)
+            for (let wordItem of words) {
+                let word = wordItem['w']
+                if (!segmentDict[word] && pageProofDict.has(word)) {
+                    sentenceResult += buildValueHtml(pageProofDict.get(word)[0], 'error')
+                } else {
+                    if (sentenceResult.endsWith('<span') && word == 'class') {
+                        sentenceResult += ' ' + word
+                    } else {
+                        sentenceResult += word
+                    }
+                }
+            }
+            newContent += sentenceResult
+            sentenceMerge = ''
         }
-        newContent += sentenceMerge
-        sentenceMerge = ''
     }
     return newContent
 }
 
 // 构建页面级校对词典
-const buildPageProofDict = (pageProofDict, realSimilarChars, word, leftWord, prefix) => {
+const buildPageProofDict = (pageProofDict, realSimilarChars, word, leftWord, prefix, weight) => {
     let similarChars = similarDict.get(leftWord[0])
     similarChars = similarChars ? leftWord[0] + similarChars : leftWord[0]
     for (let similarChar of similarChars.split('')) {
@@ -606,19 +660,19 @@ const buildPageProofDict = (pageProofDict, realSimilarChars, word, leftWord, pre
             continue
         }
         if (leftWord.length > 1) {
-            buildPageProofDict(pageProofDict, realSimilarChars, word, leftWord.substring(1), prefix + similarChar)
+            buildPageProofDict(pageProofDict, realSimilarChars, word, leftWord.substring(1), prefix + similarChar, weight)
         } else {
             let similarWord = prefix + similarChar
             if (similarWord != word) {
-                pageProofDict.set(similarWord, buildValueHtml(word, 'error'))
+                pageProofDict.set(similarWord, [buildValueHtml(word, 'error'), weight])
             }
         }
     }
 }
 
 // 初始化
-loadAllProofDict(localStorage[USER_PROOF_DICT_KEY])
 loadSimilarDict(xingjinDictData, yinjinDictData)
+loadAllProofDict(localStorage[USER_PROOF_DICT_KEY])
 onMounted(() => {
     EventBus.on('loadUserProofDict', loadUserProofDict)
 })

@@ -71,14 +71,16 @@ import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
 import qhyxDictData from '@/dict/清华开放词库-医学.txt?raw'
 
 const $globalState = inject('$globalState')
-const segmentit = useDefault(new Segment())
-const segmentDict = JSON.parse(JSON.stringify(segmentit.DICT['TABLE']))
-const loadedCutDict = new Set()
 
 // 页面配置
 const configure = reactive({
     removeHeader: true
 })
+
+// 分词组件
+// const segmentit = useDefault(new Segment())
+// const segmentDict = JSON.parse(JSON.stringify(segmentit.DICT['TABLE']))
+// const loadedCutDict = new Set()
 
 // 开关
 const enableAiCheck = true

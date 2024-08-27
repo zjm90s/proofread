@@ -68,6 +68,7 @@ import xingjinDictData from '@/dict/[近似语料库]-形近字.txt?raw'
 import yinjinDictData from '@/dict/[近似语料库]-音近字.txt?raw'
 import sxcDictData from '@/dict/现代汉语词典-首选词.txt?raw'
 import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
+import yhDictData from '@/dict/用户词典.txt?raw'
 import qhyxDictData from '@/dict/清华开放词库-医学.txt?raw'
 
 const $globalState = inject('$globalState')
@@ -165,7 +166,8 @@ const fileReplace = (files) => {
 const loadAllProofDict = (userDictData) => {
     loadProofDict(
         sxcDictData,
-        yxscDictData
+        yxscDictData,
+        yhDictData
     )
     if (userDictData) {
         loadProofDict(userDictData)

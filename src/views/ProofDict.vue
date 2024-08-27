@@ -3,7 +3,7 @@
         <el-row class="dict-upload">
             <el-col>
                 <el-upload ref="dictFile" :auto-upload="false" :limit="1" :on-change="loadDictData" :on-exceed="fileReplace">
-                    <el-button type="primary">上传词典</el-button>
+                    <el-button type="primary">上传自定义词典</el-button>
                 </el-upload>
             </el-col>
         </el-row>
@@ -38,6 +38,7 @@ import { USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 
 import sxcDictData from '@/dict/现代汉语词典-首选词.txt?raw'
 import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
+import yhDictData from '@/dict/用户词典.txt?raw'
 
 const $globalState = inject('$globalState')
 
@@ -76,7 +77,7 @@ const loadDictData = (uploadFile) => {
         userProofDict.value = parseDictData(reader.result)
         localStorage[USER_PROOF_DICT_KEY] = reader.result
         EventBus.emit('loadUserProofDict', reader.result)
-        ElMessage.success('用户词典加载完成')
+        ElMessage.success('自定义词典加载完成')
     }
 }
 
@@ -88,7 +89,8 @@ const fileReplace = (files) => {
 // 初始化
 proofDict.value = parseDictData(
     sxcDictData,
-    yxscDictData
+    yxscDictData,
+    yhDictData
 )
 userProofDict.value = parseDictData(localStorage[USER_PROOF_DICT_KEY])
 </script>

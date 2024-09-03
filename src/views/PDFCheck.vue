@@ -192,7 +192,7 @@ const loadProofDict = (...dictDatas) => {
                 if (isNaN(value)) {
                     let errorWords = value.split(',')
                     for (let errorWord of errorWords) {
-                        errorDict.set(errorWord, buildValueHtml(keyValue[0], 'error'))
+                        errorDict.set(errorWord, keyValue[0])
                     }
                 } else {
                     correctDict.set(keyValue[0], value)
@@ -583,7 +583,7 @@ const checkWithDict = (content) => {
     if (errorDict.size > 0) {
         const keys = Array.from(errorDict.keys()).join('|')
         const regex = new RegExp(keys, 'g');
-        content = content.replace(regex, (matched) => errorDict.get(matched))
+        content = content.replace(regex, (matched) => buildValueHtml(errorDict.get(matched), 'error'))
     }
 
     // 使用正确词词库校对
@@ -615,7 +615,7 @@ const checkWithDict = (content) => {
             if (pageProofDict.size > 0) {
                 const keys = Array.from(pageProofDict.keys()).join('|')
                 const regex = new RegExp(keys, 'g');
-                sentenceMerge = sentenceMerge.replace(regex, (matched) => pageProofDict.get(matched)[0])
+                sentenceMerge = sentenceMerge.replace(regex, (matched) => buildValueHtml(pageProofDict.get(matched)[0], 'error'))
             }
             newContent += sentenceMerge
             sentenceMerge = ''
@@ -668,7 +668,7 @@ const buildPageProofDict = (pageProofDict, realSimilarChars, word, leftWord, pre
         } else {
             let similarWord = prefix + similarChar
             if (similarWord != word) {
-                pageProofDict.set(similarWord, [buildValueHtml(word, 'error'), weight])
+                pageProofDict.set(similarWord, [word, weight])
             }
         }
     }

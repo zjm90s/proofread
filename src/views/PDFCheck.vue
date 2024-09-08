@@ -67,7 +67,6 @@ import { AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from 
 import xingjinDictData from '@/dict/[近似语料库]-形近字.txt?raw'
 import yinjinDictData from '@/dict/[近似语料库]-音近字.txt?raw'
 import sxcDictData from '@/dict/现代汉语词典-首选词.txt?raw'
-import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
 import yhDictData from '@/dict/用户词典.txt?raw'
 import qhyxDictData from '@/dict/清华开放词库-医学.txt?raw'
 
@@ -86,6 +85,7 @@ const configure = reactive({
 // 开关
 const enableAiCheck = true
 const enableCache = true
+const removeWhiteSpace = false
 const fixCompatibilityIdeographs = false
 const similarCheckVersion = 1
 
@@ -99,6 +99,8 @@ const resultCache = new Map()
 // 数据字典
 // 易错词词典（错误词: 正确词）
 const errorDict = new Map()
+// 易错词正则词典（错误词: 正确词）
+const errorRegexDict = new Map()
 // 正确词词典（正确词: 词频）
 const correctDict = new Map()
 // 形近/音近字典（原字: 形近/音近字）
@@ -164,14 +166,13 @@ const fileReplace = (files) => {
 
 // 校对字典加载
 const loadAllProofDict = (userDictData) => {
-    loadProofDict(
-        sxcDictData,
-        yxscDictData,
-        yhDictData
-    )
     if (userDictData) {
         loadProofDict(userDictData)
     }
+    loadProofDict(
+        yhDictData,
+        sxcDictData
+    )
     loadSimilarChars()
 }
 
@@ -188,19 +189,46 @@ const loadProofDict = (...dictDatas) => {
             }
             let keyValue = line.split(/\s+/)
             if (keyValue.length == 2) {
+                let key = keyValue[0]
                 let value = keyValue[1]
-                if (isNaN(value)) {
-                    let errorWords = value.split(',')
-                    for (let errorWord of errorWords) {
-                        errorDict.set(errorWord, keyValue[0])
+                // 第二列为数字(权重)
+                if (!isNaN(value)) {
+                    correctDict.set(key, value)
+                    continue
+                }
+
+                // 第二列非数字
+                let errorWords = value.split(',')
+                for (let errorWord of errorWords) {
+                    if (key.includes('...')) {
+                        // 使用正则
+                        errorRegexDict.set(parseRegexSearchValue(errorWord), parseRegexReplaceValue(key))
+                    } else {
+                        // 非正则
+                        errorDict.set(errorWord, key)
                     }
-                } else {
-                    correctDict.set(keyValue[0], value)
                 }
             } else {
+                // 只有一列
                 correctDict.set(line, 1000)
             }
         }
+    }
+}
+
+const parseRegexSearchValue = (word) => {
+    let items = word.split('...')
+    return new RegExp(`${items[0]}([^，。！？：；]+)${items[1]}`, 'g')
+}
+
+const parseRegexReplaceValue = (word) => {
+    let items = word.split('...')
+    if (word.startsWith('...')) {
+        return `$1${items[1]}`
+    } else if (word.endsWith('...')) {
+        return `${items[0]}$1`
+    } else {
+        return `${items[0]}$1${items[1]}`
     }
 }
 
@@ -250,6 +278,8 @@ const loadSimilarDict = (...dictDatas) => {
 // 用户词典加载
 const loadUserProofDict = (dictData) => {
     errorDict.clear()
+    errorRegexDict.clear()
+    correctDict.clear()
     loadAllProofDict(dictData)
     resultCache.clear()
 }
@@ -433,7 +463,7 @@ const textCheck0 = async (fileObj, fileObjNext) => {
     let inSpan = false
     for (let part of diffItems) {
         let value = part.value
-        if (value.includes('<span ')) {
+        if (value.includes('<span')) {
             inSpan = true
         }
 
@@ -447,10 +477,15 @@ const textCheck0 = async (fileObj, fileObjNext) => {
             html1 = html1 + buildValueHtml(value, 'remove')
         } else {
             html1 = html1 + buildValueHtml(value)
-            html2 = html2 + buildValueHtml(value)
+            if (html2.endsWith('<span')) {
+                html2 = html2 + value
+            } else {
+                html2 = html2 + buildValueHtml(value)
+            }
         }
 
-        if (value.includes('</span>')) {
+        if (value.includes('</span>')
+            && !value.includes('<span')) { // 排除'</span>、<span'
             inSpan = false
         }
     }
@@ -497,7 +532,8 @@ const textTrim = (str) => {
     for(let i = 0; i < str.length; i++){
         switch (str[i]) {
             case ' ':
-                if (i > 0 && i < str.length - 1 && /^[A-Za-z]$/.test(str[i-1]) && /^[A-Za-z]$/.test(str[i+1])) {
+                if ((i > 0 && i < str.length - 1 && /^[A-Za-z]$/.test(str[i-1]) && /^[A-Za-z]$/.test(str[i+1]))
+                        || !removeWhiteSpace) {
                     newStr += ' '
                 }
                 break;
@@ -584,6 +620,12 @@ const checkWithDict = (content) => {
         const keys = Array.from(errorDict.keys()).join('|')
         const regex = new RegExp(keys, 'g');
         content = content.replace(regex, (matched) => buildValueHtml(errorDict.get(matched), 'error'))
+    }
+    // 使用易错词正则词典校对
+    if (errorRegexDict.size > 0) {
+        for (const [regex, value] of errorRegexDict) {
+            content = content.replace(regex, buildValueHtml(value, 'error'))
+        }
     }
 
     // 使用正确词词库校对

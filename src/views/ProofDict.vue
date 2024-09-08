@@ -1,10 +1,13 @@
 <template>
     <div class="proof-dict" v-show="$globalState.vip">
         <el-row class="dict-upload">
-            <el-col>
+            <el-col :span="12">
                 <el-upload ref="dictFile" :auto-upload="false" :limit="1" :on-change="loadDictData" :on-exceed="fileReplace">
                     <el-button type="primary">上传自定义词典</el-button>
                 </el-upload>
+            </el-col>
+            <el-col :span="12">
+                <el-text class="text-tip">词典格式：<br/>正确词 错误词1,错误词2</el-text>
             </el-col>
         </el-row>
         <el-row class="text-label">
@@ -37,7 +40,6 @@ import EventBus from '@/EventBus.js'
 import { USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 
 import sxcDictData from '@/dict/现代汉语词典-首选词.txt?raw'
-import yxscDictData from '@/dict/医学作者手册词典.txt?raw'
 import yhDictData from '@/dict/用户词典.txt?raw'
 
 const $globalState = inject('$globalState')
@@ -89,7 +91,6 @@ const fileReplace = (files) => {
 // 初始化
 proofDict.value = parseDictData(
     sxcDictData,
-    yxscDictData,
     yhDictData
 )
 userProofDict.value = parseDictData(localStorage[USER_PROOF_DICT_KEY])
@@ -106,10 +107,14 @@ userProofDict.value = parseDictData(localStorage[USER_PROOF_DICT_KEY])
 }
 .text-dict {
     white-space: pre-wrap;
-    word-spacing: 1em;
+    word-spacing: 0.5em;
 }
 .text-dict > .el-col {
     padding: 10px;
     border: 1px solid var(--el-menu-border-color);
+}
+.text-tip {
+    font-weight: bold;
+    color: var(--el-color-primary);
 }
 </style>

@@ -67,6 +67,7 @@ import { AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from 
 import xingjinDictData from '@/dict/[近似语料库]-形近字.txt?raw'
 import yinjinDictData from '@/dict/[近似语料库]-音近字.txt?raw'
 import sxcDictData from '@/dict/现代汉语词典-首选词.txt?raw'
+import cyzyDictData from '@/dict/常用中药名称.txt?raw'
 import yhDictData from '@/dict/用户词典.txt?raw'
 import qhyxDictData from '@/dict/清华开放词库-医学.txt?raw'
 
@@ -171,7 +172,8 @@ const loadAllProofDict = (userDictData) => {
     }
     loadProofDict(
         yhDictData,
-        sxcDictData
+        sxcDictData,
+        cyzyDictData
     )
     loadSimilarChars()
 }

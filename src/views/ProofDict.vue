@@ -40,6 +40,7 @@ import EventBus from '@/EventBus.js'
 import { USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 
 import sxcDictData from '@/dict/现代汉语词典-首选词.txt?raw'
+import cyzyDictData from '@/dict/常用中药名称.txt?raw'
 import yhDictData from '@/dict/用户词典.txt?raw'
 
 const $globalState = inject('$globalState')
@@ -91,6 +92,7 @@ const fileReplace = (files) => {
 // 初始化
 proofDict.value = parseDictData(
     sxcDictData,
+    cyzyDictData,
     yhDictData
 )
 userProofDict.value = parseDictData(localStorage[USER_PROOF_DICT_KEY])

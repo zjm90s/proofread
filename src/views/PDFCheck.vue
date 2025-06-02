@@ -62,7 +62,7 @@ import VuePdfEmbed from 'vue-pdf-embed'
 import 'vue-pdf-embed/dist/styles/textLayer.css'
 
 import EventBus from '@/EventBus.js'
-import { AI_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from '@/constants/constant.js'
+import { CHAT_GPT_SECRET_KEY, DEEP_SEEK_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 
 import xingjinDictData from '@/dict/[近似语料库]-形近字.txt?raw'
 import yinjinDictData from '@/dict/[近似语料库]-音近字.txt?raw'
@@ -579,13 +579,25 @@ const aiCheck = async (pageNumber, text) => {
         return result
     }
 
-    let apiKey = Cookies.get(AI_SECRET_KEY)
-    if (!apiKey) {
-        throw new Error('秘钥未设置')
-    }
     let model = Cookies.get(AI_MODEL_KEY)
     if (!model) {
         model = 'gpt-4o-mini'
+    }
+    let apiKey,baseURL
+    if (model.startsWith('gpt')) {
+        baseURL = 'https://api.gptsapi.net/v1'
+        apiKey = Cookies.get(CHAT_GPT_SECRET_KEY)
+        if (!apiKey) {
+            throw new Error('ChatGPT秘钥未设置')
+        }
+    } else if (model.startsWith('deepseek')) {
+        baseURL = 'https://api.deepseek.com'
+        apiKey = Cookies.get(DEEP_SEEK_SECRET_KEY)
+        if (!apiKey) {
+            throw new Error('DeepSeek秘钥未设置')
+        }
+    } else {
+        throw new Error('模型名称未正确识别')
     }
     let prompt = Cookies.get(AI_PROMPT_KEY)
     if (!prompt) {
@@ -593,7 +605,7 @@ const aiCheck = async (pageNumber, text) => {
     }
 
     const openai = new OpenAI({
-        baseURL: 'https://api.gptsapi.net/v1',
+        baseURL: baseURL,
         apiKey: apiKey,
         dangerouslyAllowBrowser: true
     })

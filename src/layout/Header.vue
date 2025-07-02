@@ -3,7 +3,7 @@
 <!--        <el-menu-item>-->
 <!--            <img style="width: 100px" src="../assets/element-logo.svg" alt="Logo"/>-->
 <!--        </el-menu-item>-->
-        <el-menu-item>
+        <el-menu-item @click="toggleVip">
             <span class="text-log">
                 <el-icon :size="25"><Management/></el-icon>
                 <span>校 ~ 对</span>
@@ -29,6 +29,24 @@ import { Management, Setting } from '@element-plus/icons-vue'
 import SettingView from "@/layout/SettingView.vue"
 
 const $globalState = inject('$globalState')
+
+let vipClickCount = 0
+let vipResetTimer = null
+
+const toggleVip = () => {
+    clearTimeout(vipResetTimer)
+
+    vipClickCount++
+    if (vipClickCount === 5) {
+        $globalState.vip = !$globalState.vip
+        vipClickCount = 0
+        return
+    }
+
+    vipResetTimer = setTimeout(() => {
+        vipClickCount = 0
+    }, 1000)
+}
 
 const openSetting = () => {
     $globalState.settingVisible = true

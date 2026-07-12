@@ -1,5 +1,5 @@
 export const CHAT_GPT_SECRET_KEY = 'chat_gpt_secret_key'
-export const DEEP_SEEK_SECRET_KEY = 'deep_seek_secret_key'
+export const DOU_BAO_SECRET_KEY = 'dou_bao_secret_key'
 export const AI_MODEL_KEY = 'ai_model'
 export const AI_PROMPT_KEY = 'ai_prompt'
 export const USER_PROOF_DICT_KEY = 'user_proof_dict'

@@ -62,7 +62,7 @@ import VuePdfEmbed from 'vue-pdf-embed'
 import 'vue-pdf-embed/dist/styles/textLayer.css'
 
 import EventBus from '@/EventBus.js'
-import { CHAT_GPT_SECRET_KEY, DEEP_SEEK_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from '@/constants/constant.js'
+import { CHAT_GPT_SECRET_KEY, DOU_BAO_SECRET_KEY, AI_MODEL_KEY, AI_PROMPT_KEY, USER_PROOF_DICT_KEY } from '@/constants/constant.js'
 
 import xingjinDictData from '@/dict/[近似语料库]-形近字.txt?raw'
 import yinjinDictData from '@/dict/[近似语料库]-音近字.txt?raw'
@@ -590,11 +590,11 @@ const aiCheck = async (pageNumber, text) => {
         if (!apiKey) {
             throw new Error('ChatGPT秘钥未设置')
         }
-    } else if (model.startsWith('deepseek')) {
-        baseURL = 'https://api.deepseek.com'
-        apiKey = Cookies.get(DEEP_SEEK_SECRET_KEY)
+    } else if (model.startsWith('doubao')) {
+        baseURL = 'https://ark.cn-beijing.volces.com/api/v3'
+        apiKey = Cookies.get(DOU_BAO_SECRET_KEY)
         if (!apiKey) {
-            throw new Error('DeepSeek秘钥未设置')
+            throw new Error('DouBao秘钥未设置')
         }
     } else {
         throw new Error('模型名称未正确识别')
